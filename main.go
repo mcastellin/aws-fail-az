@@ -8,9 +8,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/mcastellin/aws-fail-az/domain"
-	ecsSvc "github.com/mcastellin/aws-fail-az/service/ecs"
+	"github.com/mcastellin/aws-fail-az/service/ecs"
 	"github.com/mcastellin/aws-fail-az/state"
 )
 
@@ -27,11 +26,9 @@ type EcsFilter struct {
 func validate(svc domain.ConsistentServiceState, ch chan<- bool, wg *sync.WaitGroup) {
 
 	defer wg.Done()
-	isValid, err := svc.Validate()
-	if err == nil {
-		log.Println("Service is invalid")
+	isValid, err := svc.Check()
+	if err != nil {
 		ch <- false
-
 	} else {
 		ch <- isValid
 	}
@@ -48,6 +45,8 @@ func main() {
 		log.Fatalf("Failed to load AWS configuration: %v", err)
 	}
 
+	provider := domain.NewProviderFromConfig(&cfg)
+
 	dynamodbClient := dynamodb.NewFromConfig(cfg)
 	state := state.StateManager{
 		Client: dynamodbClient,
@@ -57,12 +56,18 @@ func main() {
 
 	allServices := make([]domain.ConsistentServiceState, 0)
 
-	ecsService := ecsSvc.ECSService{
-		Client:      ecs.NewFromConfig(cfg),
+	ecsService := ecs.ECSService{
+		Provider:    &provider,
 		ClusterArn:  "test",
 		ServiceName: "test",
 	}
 	allServices = append(allServices, ecsService)
+
+	ecsService = ecs.ECSService{
+		Provider:    &provider,
+		ClusterArn:  "tutorial-sample-app-cluster",
+		ServiceName: "sample-app-back",
+	}
 	allServices = append(allServices, ecsService)
 
 	validationResults := make(chan bool, len(allServices))
@@ -79,4 +84,6 @@ func main() {
 	for result := range validationResults {
 		log.Println(result)
 	}
+
+	ecsService.Fail()
 }

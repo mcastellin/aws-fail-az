@@ -19,6 +19,7 @@ const fallbackStateTableName string = "aws-fail-az-state"
 type StateManager struct {
 	Client    *dynamodb.Client
 	TableName string
+	Namespace string
 }
 
 // Check if the state table already exists for the current AWS Account/Region

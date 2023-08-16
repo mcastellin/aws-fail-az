@@ -2,23 +2,26 @@ package ecs
 
 import (
 	"context"
-	"errors"
+	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
-	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	"github.com/mcastellin/aws-fail-az/domain"
 )
 
 type ECSService struct {
-	Client      *ecs.Client
+	Provider    *domain.AWSProvider
 	ClusterArn  string
 	ServiceName string
 }
 
-func (svc ECSService) Validate() (bool, error) {
+func (svc ECSService) Check() (bool, error) {
 	isValid := true
 
-	result, err := serviceExists(svc.Client, svc.ClusterArn, svc.ServiceName)
+	client := ecs.NewFromConfig(svc.Provider.GetConnection())
+
+	result, err := serviceStable(client, svc.ClusterArn, svc.ServiceName)
 	if err != nil {
 		return false, nil
 	} else {
@@ -32,22 +35,35 @@ func (svc ECSService) Save() error {
 	return nil
 }
 
-func serviceExists(client *ecs.Client, clusterArn string, serviceName string) (bool, error) {
+func (svc ECSService) Fail() error {
+	ec2Client := ec2.NewFromConfig(svc.Provider.GetConnection())
+	ecsClient := ecs.NewFromConfig(svc.Provider.GetConnection())
 
 	input := &ecs.DescribeServicesInput{
-		Cluster:  aws.String(clusterArn),
-		Services: []string{*aws.String(serviceName)},
+		Cluster:  aws.String(svc.ClusterArn),
+		Services: []string{*aws.String(svc.ServiceName)},
 	}
 
-	_, err := client.DescribeServices(context.TODO(), input)
-
+	describeOutput, err := ecsClient.DescribeServices(context.TODO(), input)
 	if err != nil {
-		if t := new(types.ResourceNotFoundException); errors.As(err, &t) {
-			return false, nil
-		} else if t := new(types.ClusterNotFoundException); errors.As(err, &t) {
-			return false, nil
-		}
-		return false, err
+		return err
 	}
-	return true, nil
+
+	service := describeOutput.Services[0]
+	subnets := service.NetworkConfiguration.AwsvpcConfiguration.Subnets
+	log.Println(subnets)
+
+	filterSubnetsByAz(ec2Client, subnets, []string{"us-east-1a"})
+
+	return nil
+}
+
+func filterSubnetsByAz(client *ec2.Client, subnetIds []string, azs []string) ([]string, error) {
+	//TODO
+
+	return []string{}, nil
+}
+
+func (svc ECSService) Restore() error {
+	return nil
 }

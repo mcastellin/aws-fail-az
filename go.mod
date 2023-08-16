@@ -11,6 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.32 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.39 // indirect
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.21.2 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.112.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ecs v1.29.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.9.13 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.7.32 // indirect
