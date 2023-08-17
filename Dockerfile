@@ -9,8 +9,7 @@ WORKDIR /go/src/
 RUN : \
     && git clone https://github.com/mcastellin/aws-fail-az.git \
     && cd aws-fail-az/ \
-    && git checkout feat/fail-ecs \
-    && go build \
+    && CGO_ENABLED=0 go build \
     && :
 
 FROM debian
