@@ -3,11 +3,14 @@ package state
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
@@ -20,6 +23,27 @@ type StateManager struct {
 	Client    *dynamodb.Client
 	TableName string
 	Namespace string
+}
+
+type ResourceState struct {
+	Namespace    string `dynamodbav:"namespace"`
+	Key          string `dynamodbav:"key"`
+	ResourceKey  string `dynamodbav:"resourceKey"`
+	ResourceType string `dynamodbav:"resourceType"`
+	CreatedTime  int64  `dynamodbav:"createdTime"`
+	State        []byte `dynamodbav:"state"`
+}
+
+func (state ResourceState) GetKey() map[string]types.AttributeValue {
+	namespace, err := attributevalue.Marshal(state.Namespace)
+	if err != nil {
+		log.Panic(err)
+	}
+	key, err := attributevalue.Marshal(state.Key)
+	if err != nil {
+		log.Panic(err)
+	}
+	return map[string]types.AttributeValue{"namespace": namespace, "key": key}
 }
 
 // Check if the state table already exists for the current AWS Account/Region
@@ -68,7 +92,7 @@ func (manager StateManager) createTable() (*dynamodb.CreateTableOutput, error) {
 		},
 		LocalSecondaryIndexes: []types.LocalSecondaryIndex{
 			{
-				IndexName: aws.String("LSITestId"),
+				IndexName: aws.String("LSINamespace"),
 				KeySchema: []types.KeySchemaElement{
 					{
 						AttributeName: aws.String("namespace"),
@@ -111,7 +135,7 @@ func (manager StateManager) createTable() (*dynamodb.CreateTableOutput, error) {
 // Initialize the state manager.
 // This only needs to be called once at the beginning of the program to create the
 // state table in Dynamodb. Further calls will have no effect.
-func (manager StateManager) Initialize() {
+func (manager *StateManager) Initialize() {
 	stateTableName := os.Getenv("AWS_FAILAZ_STATE_TABLE")
 	if stateTableName == "" {
 		log.Printf("AWS_FAILAZ_STATE_STABLE variable is not set. Using default %s", fallbackStateTableName)
@@ -132,4 +156,94 @@ func (manager StateManager) Initialize() {
 			log.Fatalf("Error creating state table in Dynamodb. %v", err)
 		}
 	}
+
+	if manager.Namespace == "" {
+		manager.Namespace = "default"
+	}
+}
+
+func (manager StateManager) Save(resourceType string, resourceKey string, state []byte) error {
+
+	key := fmt.Sprintf("/%s/%s/%s", manager.Namespace, resourceType, resourceKey)
+	stateObj := ResourceState{
+		Namespace:    manager.Namespace,
+		Key:          key,
+		ResourceKey:  resourceKey,
+		ResourceType: resourceType,
+		CreatedTime:  time.Now().Unix(),
+		State:        state,
+	}
+
+	log.Println(manager.TableName)
+
+	getItemInput := &dynamodb.GetItemInput{
+		TableName: aws.String(manager.TableName),
+		Key:       stateObj.GetKey(),
+	}
+	response, err := manager.Client.GetItem(context.TODO(), getItemInput)
+	if err != nil {
+		return err
+	}
+	keyExists := len(response.Item) > 0
+	if keyExists {
+		return fmt.Errorf("State key already exist for resource %s", key)
+	}
+
+	item, err := attributevalue.MarshalMap(stateObj)
+	if err != nil {
+		return err
+	}
+	_, err = manager.Client.PutItem(context.TODO(), &dynamodb.PutItemInput{
+		TableName: aws.String(manager.TableName),
+		Item:      item,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (manager StateManager) ReadStates() ([]ResourceState, error) {
+
+	keyExpr := expression.Key("namespace").Equal(expression.Value(manager.Namespace))
+	expr, err := expression.NewBuilder().WithKeyCondition(keyExpr).Build()
+	if err != nil {
+		log.Println("Unable to build query expression to fetch resource states")
+		return []ResourceState{}, err
+	}
+
+	queryInput := &dynamodb.QueryInput{
+		TableName:                 aws.String(manager.TableName),
+		IndexName:                 aws.String("LSINamespace"),
+		KeyConditionExpression:    expr.KeyCondition(),
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+	}
+	response, err := manager.Client.Query(context.TODO(), queryInput)
+	if err != nil {
+		return []ResourceState{}, err
+	}
+
+	var resourceStates []ResourceState
+	err = attributevalue.UnmarshalListOfMaps(response.Items, &resourceStates)
+	if err != nil {
+		log.Println("Error unmarshalling resource states")
+		return []ResourceState{}, err
+	}
+
+	return resourceStates, nil
+}
+
+func (manager StateManager) RemoveState(stateObj ResourceState) error {
+	deleteItemInput := &dynamodb.DeleteItemInput{
+		TableName: aws.String(manager.TableName),
+		Key:       stateObj.GetKey(),
+	}
+	_, err := manager.Client.DeleteItem(context.TODO(), deleteItemInput)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -48,7 +49,7 @@ func main() {
 	provider := domain.NewProviderFromConfig(&cfg)
 
 	dynamodbClient := dynamodb.NewFromConfig(cfg)
-	state := state.StateManager{
+	state := &state.StateManager{
 		Client: dynamodbClient,
 	}
 
@@ -86,13 +87,28 @@ func main() {
 		}
 	}
 
-	err = ecsService.Save()
+	err = ecsService.Save(state)
 	if err != nil {
 		log.Panic(err)
 	}
 
-	//err = ecsService.Fail()
-	//if err != nil {
-	//log.Panic(err)
-	//}
+	err = ecsService.Fail()
+	if err != nil {
+		log.Panic(err)
+	}
+
+	time.Sleep(30 * time.Second)
+
+	states, err := state.ReadStates()
+	if err != nil {
+		log.Panic(err)
+	}
+	for _, s := range states {
+		err = ecs.ECSService{Provider: &provider}.Restore(s.State)
+		if err != nil {
+			log.Println(err)
+		} else {
+			state.RemoveState(s)
+		}
+	}
 }
