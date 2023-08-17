@@ -1,0 +1,27 @@
+{
+  "azs": [
+    "us-east-1a"
+  ],
+  "services": [
+    {
+      "type": "ecs-service",
+      "filter": "cluster=tutorial-sample-app-cluster;service=sample-app-back",
+      "tags": [
+        {
+          "Name": "Environment",
+          "Value": "live"
+        }
+      ]
+    },
+    {
+      "type": "ecs-service",
+      "filter": "cluster=tutorial-sample-app-cluster;service=sample-app-front",
+      "tags": [
+        {
+          "Name": "Environment",
+          "Value": "live"
+        }
+      ]
+    }
+  ]
+}

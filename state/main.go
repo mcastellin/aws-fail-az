@@ -174,8 +174,6 @@ func (manager StateManager) Save(resourceType string, resourceKey string, state 
 		State:        state,
 	}
 
-	log.Println(manager.TableName)
-
 	getItemInput := &dynamodb.GetItemInput{
 		TableName: aws.String(manager.TableName),
 		Key:       stateObj.GetKey(),

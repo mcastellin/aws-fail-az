@@ -1,126 +1,39 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
 	"log"
-	"sync"
-	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/mcastellin/aws-fail-az/domain"
-	"github.com/mcastellin/aws-fail-az/service/ecs"
-	"github.com/mcastellin/aws-fail-az/state"
+	_cmd "github.com/mcastellin/aws-fail-az/cmd"
+	"github.com/spf13/cobra"
 )
 
-const faultConfiguration string = `
-{
-  "azs": [
-    "us-east-1a"
-  ],
-  "services": [
-    {
-      "type": "ecs-service",
-      "filter": "cluster=tutorial-sample-app-cluster;service=sample-app-back",
-      "tags": [
-        {
-          "Name": "Environment",
-          "Value": "live"
-        }
-      ]
-    }
-  ]
+var rootCmd = &cobra.Command{
+	Use:   "aws-fail-az",
+	Short: "aws-fail-az is an AWS utility to simulate Availability Zone failure",
 }
-`
 
-func validate(svc domain.ConsistentServiceState, ch chan<- bool, wg *sync.WaitGroup) {
+var failCmd = &cobra.Command{
+	Use:   "fail",
+	Short: "Start AZ failure injection based on the provided configuration from stdin",
+	Run: func(cmd *cobra.Command, args []string) {
+		_cmd.FailCommand()
+	},
+}
 
-	defer wg.Done()
-	isValid, err := svc.Check()
-	if err != nil {
-		ch <- false
-	} else {
-		ch <- isValid
-	}
+var recoverCmd = &cobra.Command{
+	Use:   "recover",
+	Short: "Recover from AZ failure and restore saved resources state",
+	Run: func(cmd *cobra.Command, args []string) {
+		_cmd.RecoverCommand()
+	},
 }
 
 func main() {
 
-	var faultConfig domain.FaultConfiguration
-	err := json.Unmarshal([]byte(faultConfiguration), &faultConfig)
-	if err != nil {
+	rootCmd.AddCommand(failCmd)
+	rootCmd.AddCommand(recoverCmd)
+
+	if err := rootCmd.Execute(); err != nil {
 		log.Panic(err)
-	}
-
-	log.Printf("Failing availability zones %s", faultConfig.Azs)
-
-	cfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		log.Fatalf("Failed to load AWS configuration: %v", err)
-	}
-
-	provider := domain.NewProviderFromConfig(&cfg)
-
-	dynamodbClient := dynamodb.NewFromConfig(cfg)
-	stateManager := &state.StateManager{
-		Client: dynamodbClient,
-	}
-
-	stateManager.Initialize()
-
-	allServices := make([]domain.ConsistentServiceState, 0)
-
-	for _, svc := range faultConfig.Services {
-		if svc.Type == ecs.RESOURCE_TYPE {
-			svcConfig, err := ecs.NewFromConfig(svc, &provider)
-			if err != nil {
-				log.Panic(err)
-			} else {
-				allServices = append(allServices, svcConfig)
-			}
-		}
-	}
-
-	validationResults := make(chan bool, len(allServices))
-
-	var wg sync.WaitGroup
-	for _, svc := range allServices {
-		wg.Add(1)
-		go validate(svc, validationResults, &wg)
-	}
-
-	wg.Wait()
-	close(validationResults)
-
-	for isValid := range validationResults {
-		if !isValid {
-			log.Panic("One or more resources failed state checks. Panic.")
-		}
-	}
-
-	err = allServices[0].Save(stateManager)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	err = allServices[0].Fail(faultConfig.Azs)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	time.Sleep(30 * time.Second)
-
-	states, err := stateManager.ReadStates()
-	if err != nil {
-		log.Panic(err)
-	}
-	for _, s := range states {
-		err = ecs.ECSService{Provider: &provider}.Restore(s.State)
-		if err != nil {
-			log.Println(err)
-		} else {
-			stateManager.RemoveState(s)
-		}
 	}
 }
