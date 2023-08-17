@@ -55,20 +55,19 @@ func main() {
 	state.Initialize()
 
 	allServices := make([]domain.ConsistentServiceState, 0)
-
 	ecsService := ecs.ECSService{
-		Provider:    &provider,
-		ClusterArn:  "test",
-		ServiceName: "test",
-	}
-	allServices = append(allServices, ecsService)
-
-	ecsService = ecs.ECSService{
 		Provider:    &provider,
 		ClusterArn:  "tutorial-sample-app-cluster",
 		ServiceName: "sample-app-back",
 	}
 	allServices = append(allServices, ecsService)
+
+	//ecsService = ecs.ECSService{
+	//Provider:    &provider,
+	//ClusterArn:  "test",
+	//ServiceName: "test",
+	//}
+	//allServices = append(allServices, ecsService)
 
 	validationResults := make(chan bool, len(allServices))
 
@@ -81,9 +80,19 @@ func main() {
 	wg.Wait()
 	close(validationResults)
 
-	for result := range validationResults {
-		log.Println(result)
+	for isValid := range validationResults {
+		if !isValid {
+			log.Panic("One or more resources failed state checks. Panic.")
+		}
 	}
 
-	ecsService.Fail()
+	err = ecsService.Save()
+	if err != nil {
+		log.Panic(err)
+	}
+
+	//err = ecsService.Fail()
+	//if err != nil {
+	//log.Panic(err)
+	//}
 }
