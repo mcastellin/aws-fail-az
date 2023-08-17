@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -15,6 +16,35 @@ import (
 
 // The resource type key to use for storing state of ECS services
 const RESOURCE_TYPE string = "ecs-service"
+
+func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider) (*ECSService, error) {
+	if selector.Type != RESOURCE_TYPE {
+		return nil, fmt.Errorf("Unable to create ECSService object from selector of type %s", selector.Type)
+	}
+
+	var cluster, service string
+
+	props := strings.Split(selector.Filter, ";")
+	for _, prop := range props {
+		tokens := strings.Split(prop, "=")
+		key := tokens[0]
+		value := tokens[1]
+
+		if key == "cluster" {
+			cluster = value
+		} else if key == "service" {
+			service = value
+		} else {
+			return nil, fmt.Errorf("Unrecognized key %s for type %s", key, RESOURCE_TYPE)
+		}
+	}
+
+	return &ECSService{
+		Provider:    provider,
+		ClusterArn:  cluster,
+		ServiceName: service,
+	}, nil
+}
 
 type ECSService struct {
 	Provider    *domain.AWSProvider
@@ -80,7 +110,7 @@ func (svc ECSService) Save(stateManager *state.StateManager) error {
 	return nil
 }
 
-func (svc ECSService) Fail() error {
+func (svc ECSService) Fail(azs []string) error {
 	ec2Client := ec2.NewFromConfig(svc.Provider.GetConnection())
 	ecsClient := ecs.NewFromConfig(svc.Provider.GetConnection())
 
@@ -97,7 +127,7 @@ func (svc ECSService) Fail() error {
 	service := describeOutput.Services[0]
 	subnets := service.NetworkConfiguration.AwsvpcConfiguration.Subnets
 
-	newSubnets, err := filterSubnetsNotInAzs(ec2Client, subnets, []string{"us-east-1b"})
+	newSubnets, err := filterSubnetsNotInAzs(ec2Client, subnets, azs)
 	if err != nil {
 		log.Printf("Error while filtering subnets by AZs: %v", err)
 		return err

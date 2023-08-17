@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"log"
 	"sync"
 	"time"
@@ -14,15 +14,25 @@ import (
 	"github.com/mcastellin/aws-fail-az/state"
 )
 
-type BaseFilter struct {
-	tags []string
+const faultConfiguration string = `
+{
+  "azs": [
+    "us-east-1a"
+  ],
+  "services": [
+    {
+      "type": "ecs-service",
+      "filter": "cluster=tutorial-sample-app-cluster;service=sample-app-back",
+      "tags": [
+        {
+          "Name": "Environment",
+          "Value": "live"
+        }
+      ]
+    }
+  ]
 }
-type EcsFilter struct {
-	BaseFilter
-
-	clusterArn  string
-	serviceName string
-}
+`
 
 func validate(svc domain.ConsistentServiceState, ch chan<- bool, wg *sync.WaitGroup) {
 
@@ -37,9 +47,13 @@ func validate(svc domain.ConsistentServiceState, ch chan<- bool, wg *sync.WaitGr
 
 func main() {
 
-	var azs = [...]string{"us-east-1"}
+	var faultConfig domain.FaultConfiguration
+	err := json.Unmarshal([]byte(faultConfiguration), &faultConfig)
+	if err != nil {
+		log.Panic(err)
+	}
 
-	fmt.Println(azs)
+	log.Printf("Failing availability zones %s", faultConfig.Azs)
 
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
@@ -49,26 +63,24 @@ func main() {
 	provider := domain.NewProviderFromConfig(&cfg)
 
 	dynamodbClient := dynamodb.NewFromConfig(cfg)
-	state := &state.StateManager{
+	stateManager := &state.StateManager{
 		Client: dynamodbClient,
 	}
 
-	state.Initialize()
+	stateManager.Initialize()
 
 	allServices := make([]domain.ConsistentServiceState, 0)
-	ecsService := ecs.ECSService{
-		Provider:    &provider,
-		ClusterArn:  "tutorial-sample-app-cluster",
-		ServiceName: "sample-app-back",
-	}
-	allServices = append(allServices, ecsService)
 
-	//ecsService = ecs.ECSService{
-	//Provider:    &provider,
-	//ClusterArn:  "test",
-	//ServiceName: "test",
-	//}
-	//allServices = append(allServices, ecsService)
+	for _, svc := range faultConfig.Services {
+		if svc.Type == ecs.RESOURCE_TYPE {
+			svcConfig, err := ecs.NewFromConfig(svc, &provider)
+			if err != nil {
+				log.Panic(err)
+			} else {
+				allServices = append(allServices, svcConfig)
+			}
+		}
+	}
 
 	validationResults := make(chan bool, len(allServices))
 
@@ -87,19 +99,19 @@ func main() {
 		}
 	}
 
-	err = ecsService.Save(state)
+	err = allServices[0].Save(stateManager)
 	if err != nil {
 		log.Panic(err)
 	}
 
-	err = ecsService.Fail()
+	err = allServices[0].Fail(faultConfig.Azs)
 	if err != nil {
 		log.Panic(err)
 	}
 
 	time.Sleep(30 * time.Second)
 
-	states, err := state.ReadStates()
+	states, err := stateManager.ReadStates()
 	if err != nil {
 		log.Panic(err)
 	}
@@ -108,7 +120,7 @@ func main() {
 		if err != nil {
 			log.Println(err)
 		} else {
-			state.RemoveState(s)
+			stateManager.RemoveState(s)
 		}
 	}
 }
