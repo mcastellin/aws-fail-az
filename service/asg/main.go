@@ -13,6 +13,7 @@ import (
 	"github.com/mcastellin/aws-fail-az/domain"
 	"github.com/mcastellin/aws-fail-az/service/awsutils"
 	"github.com/mcastellin/aws-fail-az/state"
+	"golang.org/x/exp/slices"
 )
 
 // The resource key to use for storing state of autoscaling groups
@@ -142,6 +143,26 @@ func (asg AutoscalingGroup) Fail(azs []string) error {
 	_, err = client.UpdateAutoScalingGroup(context.TODO(), updateAsgInput)
 	if err != nil {
 		return err
+	}
+
+	fmt.Println(*asgObj.Instances[0].AvailabilityZone)
+	instancesToTerminate := []string{}
+	for _, instance := range asgObj.Instances {
+		if slices.Contains(azs, *instance.AvailabilityZone) {
+			instancesToTerminate = append(instancesToTerminate, *instance.InstanceId)
+		}
+	}
+	if len(instancesToTerminate) > 0 {
+		log.Printf("Terminating instances %s for autoscaling group %s that belonged to remove subnets.",
+			instancesToTerminate, asg.AutoScalingGroupName)
+
+		terminateInstancesInput := &ec2.TerminateInstancesInput{
+			InstanceIds: instancesToTerminate,
+		}
+		_, err = ec2Client.TerminateInstances(context.TODO(), terminateInstancesInput)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
