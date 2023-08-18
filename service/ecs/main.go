@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/mcastellin/aws-fail-az/domain"
+	"github.com/mcastellin/aws-fail-az/service/awsutils"
 	"github.com/mcastellin/aws-fail-az/state"
 )
 
@@ -19,7 +20,7 @@ const RESOURCE_TYPE string = "ecs-service"
 
 func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider) (*ECSService, error) {
 	if selector.Type != RESOURCE_TYPE {
-		return nil, fmt.Errorf("Unable to create ECSService object from selector of type %s", selector.Type)
+		return nil, fmt.Errorf("Unable to create ECSService object from selector of type %s.", selector.Type)
 	}
 
 	var cluster, service string
@@ -127,7 +128,7 @@ func (svc ECSService) Fail(azs []string) error {
 	service := describeOutput.Services[0]
 	subnets := service.NetworkConfiguration.AwsvpcConfiguration.Subnets
 
-	newSubnets, err := filterSubnetsNotInAzs(ec2Client, subnets, azs)
+	newSubnets, err := awsutils.FilterSubnetsNotInAzs(ec2Client, subnets, azs)
 	if err != nil {
 		log.Printf("Error while filtering subnets by AZs: %v", err)
 		return err

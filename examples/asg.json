@@ -1,0 +1,17 @@
+{
+  "azs": [
+    "us-east-1a"
+  ],
+  "services": [
+    {
+      "type": "ec2-asg",
+      "filter": "name=live-chaos-comment-ec2-autoscaling-ondemand-20230818075739186500000015",
+      "tags": [
+        {
+          "Name": "Environment",
+          "Value": "live"
+        }
+      ]
+    }
+  ]
+}
