@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"log"
 
-	_cmd "github.com/mcastellin/aws-fail-az/cmd"
 	"github.com/spf13/cobra"
 )
 
-var version string = "0.0.1"
+var BuildVersion string = ""
 var (
 	namespace string
 	stdin     bool
@@ -32,7 +31,7 @@ var failCmd = &cobra.Command{
 		if !stdin {
 			configFile = args[0]
 		}
-		_cmd.FailCommand(namespace, stdin, configFile)
+		FailCommand(namespace, stdin, configFile)
 	},
 }
 
@@ -40,7 +39,7 @@ var recoverCmd = &cobra.Command{
 	Use:   "recover",
 	Short: "Recover from AZ failure and restore saved resources state",
 	Run: func(cmd *cobra.Command, args []string) {
-		_cmd.RecoverCommand(namespace)
+		RecoverCommand(namespace)
 	},
 }
 
@@ -48,7 +47,7 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the command version",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("aws-fail-az v%s\n", version)
+		fmt.Printf("aws-fail-az v%s\n", BuildVersion)
 	},
 }
 
