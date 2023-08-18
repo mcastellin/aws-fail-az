@@ -5,23 +5,11 @@
   "services": [
     {
       "type": "ecs-service",
-      "filter": "cluster=tutorial-sample-app-cluster;service=sample-app-back",
-      "tags": [
-        {
-          "Name": "Environment",
-          "Value": "live"
-        }
-      ]
+      "filter": "cluster=tutorial-sample-app-cluster;service=sample-app-back"
     },
     {
       "type": "ecs-service",
-      "filter": "cluster=tutorial-sample-app-cluster;service=sample-app-front",
-      "tags": [
-        {
-          "Name": "Environment",
-          "Value": "live"
-        }
-      ]
+      "filter": "cluster=tutorial-sample-app-cluster;service=sample-app-front"
     }
   ]
 }

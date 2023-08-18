@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -17,35 +16,6 @@ import (
 
 // The resource type key to use for storing state of ECS services
 const RESOURCE_TYPE string = "ecs-service"
-
-func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider) (*ECSService, error) {
-	if selector.Type != RESOURCE_TYPE {
-		return nil, fmt.Errorf("Unable to create ECSService object from selector of type %s.", selector.Type)
-	}
-
-	var cluster, service string
-
-	props := strings.Split(selector.Filter, ";")
-	for _, prop := range props {
-		tokens := strings.Split(prop, "=")
-		key := tokens[0]
-		value := tokens[1]
-
-		if key == "cluster" {
-			cluster = value
-		} else if key == "service" {
-			service = value
-		} else {
-			return nil, fmt.Errorf("Unrecognized key %s for type %s", key, RESOURCE_TYPE)
-		}
-	}
-
-	return &ECSService{
-		Provider:    provider,
-		ClusterArn:  cluster,
-		ServiceName: service,
-	}, nil
-}
 
 type ECSService struct {
 	Provider    *domain.AWSProvider
