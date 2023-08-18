@@ -25,15 +25,24 @@ func validate(svc domain.ConsistentServiceState, ch chan<- bool, wg *sync.WaitGr
 	}
 }
 
-func FailCommand() {
+func FailCommand(namespace string, readFromStdin bool, configFile string) {
 
-	stdin, err1 := io.ReadAll(os.Stdin)
-	if err1 != nil {
-		log.Panic(err1)
+	var configContent []byte
+	var err error
+	if readFromStdin {
+		configContent, err = io.ReadAll(os.Stdin)
+		if err != nil {
+			log.Panic(err)
+		}
+	} else {
+		configContent, err = os.ReadFile(configFile)
+		if err != nil {
+			log.Panic(err)
+		}
 	}
 
 	var faultConfig domain.FaultConfiguration
-	err := json.Unmarshal(stdin, &faultConfig)
+	err = json.Unmarshal(configContent, &faultConfig)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -49,7 +58,8 @@ func FailCommand() {
 
 	dynamodbClient := dynamodb.NewFromConfig(cfg)
 	stateManager := &state.StateManager{
-		Client: dynamodbClient,
+		Client:    dynamodbClient,
+		Namespace: namespace,
 	}
 
 	stateManager.Initialize()
@@ -99,7 +109,7 @@ func FailCommand() {
 	}
 }
 
-func RecoverCommand() {
+func RecoverCommand(namespace string) {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		log.Fatalf("Failed to load AWS configuration: %v", err)
@@ -108,7 +118,8 @@ func RecoverCommand() {
 
 	dynamodbClient := dynamodb.NewFromConfig(cfg)
 	stateManager := &state.StateManager{
-		Client: dynamodbClient,
+		Client:    dynamodbClient,
+		Namespace: namespace,
 	}
 
 	stateManager.Initialize()
