@@ -145,7 +145,6 @@ func (asg AutoscalingGroup) Fail(azs []string) error {
 		return err
 	}
 
-	fmt.Println(*asgObj.Instances[0].AvailabilityZone)
 	instancesToTerminate := []string{}
 	for _, instance := range asgObj.Instances {
 		if slices.Contains(azs, *instance.AvailabilityZone) {
