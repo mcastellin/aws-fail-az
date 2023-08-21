@@ -11,6 +11,7 @@ import (
 )
 
 func stopTasksInRemovedSubnets(client *ecs.Client, cluster string, service string, validSubnets []string) error {
+	//TODO: list tasks using paginator instead
 	listTasksInput := &ecs.ListTasksInput{
 		Cluster:     aws.String(cluster),
 		ServiceName: aws.String(service),
@@ -42,7 +43,8 @@ func stopTasksInRemovedSubnets(client *ecs.Client, cluster string, service strin
 				if err != nil {
 					return err
 				}
-				log.Printf("Stopped task %s for service %s az-failure", *task.TaskArn, service)
+				log.Printf("%s cluster=%s,name=%s: terminating task %s running in removed subnets.",
+					RESOURCE_TYPE, cluster, service, *task.TaskArn)
 			}
 		}
 	}

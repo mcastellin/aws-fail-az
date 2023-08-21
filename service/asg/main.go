@@ -32,6 +32,9 @@ type AutoScalingGroupState struct {
 func (asg AutoScalingGroup) Check() (bool, error) {
 	isValid := true
 
+	log.Printf("%s name=%s: checking resource state before failure simulation",
+		RESOURCE_TYPE, asg.AutoScalingGroupName)
+
 	client := autoscaling.NewFromConfig(asg.Provider.GetConnection())
 
 	input := &autoscaling.DescribeAutoScalingGroupsInput{
@@ -112,8 +115,11 @@ func (asg AutoScalingGroup) Fail(azs []string) error {
 
 	newSubnets, err := awsutils.FilterSubnetsNotInAzs(ec2Client, subnets, azs)
 
+	log.Printf("%s name=%s: failing AZs %s for autoscaling group",
+		RESOURCE_TYPE, asg.AutoScalingGroupName, azs)
+
 	updateAsgInput := &autoscaling.UpdateAutoScalingGroupInput{
-		AutoScalingGroupName: &asg.AutoScalingGroupName,
+		AutoScalingGroupName: aws.String(asg.AutoScalingGroupName),
 		VPCZoneIdentifier:    aws.String(strings.Join(newSubnets, ",")),
 	}
 
@@ -129,8 +135,8 @@ func (asg AutoScalingGroup) Fail(azs []string) error {
 		}
 	}
 	if len(instancesToTerminate) > 0 {
-		log.Printf("Terminating instances %s for autoscaling group %s that belonged to remove subnets.",
-			instancesToTerminate, asg.AutoScalingGroupName)
+		log.Printf("%s name=%s: terminating instances %s that belonged to removed subnets",
+			RESOURCE_TYPE, asg.AutoScalingGroupName, instancesToTerminate)
 
 		terminateInstancesInput := &ec2.TerminateInstancesInput{
 			InstanceIds: instancesToTerminate,
@@ -149,7 +155,9 @@ func (asg AutoScalingGroup) Restore(stateData []byte) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("Restoring AZs for autoscaling group %s", state.AutoScalingGroupName)
+
+	log.Printf("%s name=%s: restoring AZs for autoscaling group", RESOURCE_TYPE, state.AutoScalingGroupName)
+
 	client := autoscaling.NewFromConfig(asg.Provider.GetConnection())
 	updateAsgInput := &autoscaling.UpdateAutoScalingGroupInput{
 		AutoScalingGroupName: aws.String(state.AutoScalingGroupName),

@@ -32,6 +32,9 @@ type ECSServiceState struct {
 func (svc ECSService) Check() (bool, error) {
 	isValid := true
 
+	log.Printf("%s cluster=%s,name=%s: checking resource state before failure simulation",
+		RESOURCE_TYPE, svc.ClusterArn, svc.ServiceName)
+
 	client := ecs.NewFromConfig(svc.Provider.GetConnection())
 
 	result, err := serviceStable(client, svc.ClusterArn, svc.ServiceName)
@@ -108,6 +111,9 @@ func (svc ECSService) Fail(azs []string) error {
 		return fmt.Errorf("AZ failure for service %s would remove all available subnets. Service failure will now stop.", svc.ServiceName)
 	}
 
+	log.Printf("%s cluster=%s,name=%s: failing AZs %s for ecs-service",
+		RESOURCE_TYPE, svc.ClusterArn, svc.ServiceName, azs)
+
 	updatedNetworkConfig := service.NetworkConfiguration
 	updatedNetworkConfig.AwsvpcConfiguration.Subnets = newSubnets
 
@@ -137,7 +143,9 @@ func (svc ECSService) Restore(stateData []byte) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("Restoring AZs for service %s in cluster %s", state.ServiceName, state.ClusterArn)
+
+	log.Printf("%s cluster=%s,name=%s: restoring AZs for ecs-service",
+		RESOURCE_TYPE, state.ClusterArn, state.ServiceName)
 
 	ecsClient := ecs.NewFromConfig(svc.Provider.GetConnection())
 
