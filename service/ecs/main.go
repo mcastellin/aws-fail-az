@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -18,39 +17,12 @@ import (
 // The resource type key to use for storing state of ECS services
 const RESOURCE_TYPE string = "ecs-service"
 
-func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider) (*ECSService, error) {
-	if selector.Type != RESOURCE_TYPE {
-		return nil, fmt.Errorf("Unable to create ECSService object from selector of type %s.", selector.Type)
-	}
-
-	var cluster, service string
-
-	props := strings.Split(selector.Filter, ";")
-	for _, prop := range props {
-		tokens := strings.Split(prop, "=")
-		key := tokens[0]
-		value := tokens[1]
-
-		if key == "cluster" {
-			cluster = value
-		} else if key == "service" {
-			service = value
-		} else {
-			return nil, fmt.Errorf("Unrecognized key %s for type %s", key, RESOURCE_TYPE)
-		}
-	}
-
-	return &ECSService{
-		Provider:    provider,
-		ClusterArn:  cluster,
-		ServiceName: service,
-	}, nil
-}
-
 type ECSService struct {
 	Provider    *domain.AWSProvider
 	ClusterArn  string
 	ServiceName string
+
+	stateSubnets []string
 }
 
 type ECSServiceState struct {
@@ -61,6 +33,9 @@ type ECSServiceState struct {
 
 func (svc ECSService) Check() (bool, error) {
 	isValid := true
+
+	log.Printf("%s cluster=%s,name=%s: checking resource state before failure simulation",
+		RESOURCE_TYPE, svc.ClusterArn, svc.ServiceName)
 
 	client := ecs.NewFromConfig(svc.Provider.GetConnection())
 
@@ -138,6 +113,9 @@ func (svc ECSService) Fail(azs []string) error {
 		return fmt.Errorf("AZ failure for service %s would remove all available subnets. Service failure will now stop.", svc.ServiceName)
 	}
 
+	log.Printf("%s cluster=%s,name=%s: failing AZs %s for ecs-service",
+		RESOURCE_TYPE, svc.ClusterArn, svc.ServiceName, azs)
+
 	updatedNetworkConfig := service.NetworkConfiguration
 	updatedNetworkConfig.AwsvpcConfiguration.Subnets = newSubnets
 
@@ -161,19 +139,15 @@ func (svc ECSService) Fail(azs []string) error {
 	return nil
 }
 
-func (svc ECSService) Restore(stateData []byte) error {
-	var state ECSServiceState
-	err := json.Unmarshal(stateData, &state)
-	if err != nil {
-		return err
-	}
-	log.Printf("Restoring AZs for service %s in cluster %s", state.ServiceName, state.ClusterArn)
+func (svc ECSService) Restore() error {
+	log.Printf("%s cluster=%s,name=%s: restoring AZs for ecs-service",
+		RESOURCE_TYPE, svc.ClusterArn, svc.ServiceName)
 
 	ecsClient := ecs.NewFromConfig(svc.Provider.GetConnection())
 
 	input := &ecs.DescribeServicesInput{
-		Cluster:  aws.String(state.ClusterArn),
-		Services: []string{*aws.String(state.ServiceName)},
+		Cluster:  aws.String(svc.ClusterArn),
+		Services: []string{*aws.String(svc.ServiceName)},
 	}
 
 	describeOutput, err := ecsClient.DescribeServices(context.TODO(), input)
@@ -184,11 +158,11 @@ func (svc ECSService) Restore(stateData []byte) error {
 	service := describeOutput.Services[0]
 
 	updatedNetworkConfig := service.NetworkConfiguration
-	updatedNetworkConfig.AwsvpcConfiguration.Subnets = state.Subnets
+	updatedNetworkConfig.AwsvpcConfiguration.Subnets = svc.stateSubnets
 
 	updateServiceInput := &ecs.UpdateServiceInput{
-		Cluster:              aws.String(state.ClusterArn),
-		Service:              aws.String(state.ServiceName),
+		Cluster:              aws.String(svc.ClusterArn),
+		Service:              aws.String(svc.ServiceName),
 		TaskDefinition:       service.TaskDefinition,
 		NetworkConfiguration: updatedNetworkConfig,
 	}

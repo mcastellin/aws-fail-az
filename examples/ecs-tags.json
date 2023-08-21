@@ -4,15 +4,15 @@
   ],
   "services": [
     {
-      "type": "auto-scaling-group",
+      "type": "ecs-service",
       "tags": [
         {
           "Name": "Environment",
-          "Value": "live"
+          "Value": "tutorial"
         },
         {
           "Name": "Application",
-          "Value": "comments"
+          "Value": "sample-app"
         }
       ]
     }

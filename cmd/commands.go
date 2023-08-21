@@ -17,7 +17,7 @@ import (
 	"github.com/mcastellin/aws-fail-az/state"
 )
 
-func validate(svc domain.ConsistentServiceState, ch chan<- bool, wg *sync.WaitGroup) {
+func validate(svc domain.ConsistentStateService, ch chan<- bool, wg *sync.WaitGroup) {
 	defer wg.Done()
 	isValid, err := svc.Check()
 	if err != nil {
@@ -67,23 +67,23 @@ func FailCommand(namespace string, readFromStdin bool, configFile string) {
 
 	stateManager.Initialize()
 
-	allServices := make([]domain.ConsistentServiceState, 0)
+	allServices := make([]domain.ConsistentStateService, 0)
 
 	for _, svc := range faultConfig.Services {
-		var svcConfig domain.ConsistentServiceState
+		var svcConfigs []domain.ConsistentStateService
 		var err error
 		if svc.Type == ecs.RESOURCE_TYPE {
-			svcConfig, err = ecs.NewFromConfig(svc, &provider)
+			svcConfigs, err = ecs.NewFromConfig(svc, &provider)
 			if err != nil {
 				log.Panic(err)
 			}
 		} else if svc.Type == asg.RESOURCE_TYPE {
-			svcConfig, err = asg.NewFromConfig(svc, &provider)
+			svcConfigs, err = asg.NewFromConfig(svc, &provider)
 			if err != nil {
 				log.Panic(err)
 			}
 		}
-		allServices = append(allServices, svcConfig)
+		allServices = append(allServices, svcConfigs...)
 
 	}
 
@@ -140,9 +140,9 @@ func RecoverCommand(namespace string) {
 	}
 	for _, s := range states {
 		if s.ResourceType == ecs.RESOURCE_TYPE {
-			err = ecs.ECSService{Provider: &provider}.Restore(s.State)
+			err = ecs.RestoreFromState(s.State, &provider)
 		} else if s.ResourceType == asg.RESOURCE_TYPE {
-			err = asg.AutoscalingGroup{Provider: &provider}.Restore(s.State)
+			err = asg.RestoreFromState(s.State, &provider)
 		} else {
 			err = fmt.Errorf("Unknown resource of type %s found in state for key %s. Could not recover.\n",
 				s.ResourceType,

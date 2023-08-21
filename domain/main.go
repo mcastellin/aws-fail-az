@@ -1,14 +1,18 @@
 package domain
 
-import "github.com/mcastellin/aws-fail-az/state"
+import (
+	"fmt"
+
+	"github.com/mcastellin/aws-fail-az/state"
+)
 
 // A representation of an AWS service state that can be
 // validated and stored with StateManager
-type ConsistentServiceState interface {
+type ConsistentStateService interface {
 	Check() (bool, error)
 	Save(*state.StateManager) error
 	Fail([]string) error
-	Restore([]byte) error
+	Restore() error
 }
 
 // AZ Failure Configuration
@@ -28,4 +32,18 @@ type ServiceSelector struct {
 type AWSTag struct {
 	Name  string `json:"Name"`
 	Value string `json:"Value"`
+}
+
+// Validates all required fields for service selector have been provided
+func ValidateServiceSelector(selector ServiceSelector) error {
+
+	if selector.Filter != "" && len(selector.Tags) > 0 {
+		return fmt.Errorf("Validation failed: Both 'filter' and 'tags' selectors specified. Only one allowed.")
+	}
+
+	if selector.Filter == "" && len(selector.Tags) == 0 {
+		return fmt.Errorf("Validation failed: One of 'filter' and 'tags' selectors must be specified.")
+	}
+
+	return nil
 }

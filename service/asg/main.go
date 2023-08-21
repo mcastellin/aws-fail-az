@@ -17,34 +17,13 @@ import (
 )
 
 // The resource key to use for storing state of autoscaling groups
-const RESOURCE_TYPE string = "ec2-asg"
+const RESOURCE_TYPE string = "auto-scaling-group"
 
-func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider) (*AutoscalingGroup, error) {
-
-	if selector.Type != RESOURCE_TYPE {
-		return nil, fmt.Errorf("Unable to create AutoscalingGroup object from selector of type %s.", selector.Type)
-	}
-
-	var asgName string
-	tokens := strings.Split(selector.Filter, "=")
-	key := tokens[0]
-	value := tokens[1]
-
-	if key == "name" {
-		asgName = value
-	} else {
-		return nil, fmt.Errorf("Unrecognized key %s for type %s", key, RESOURCE_TYPE)
-	}
-
-	return &AutoscalingGroup{
-		Provider:             provider,
-		AutoScalingGroupName: asgName,
-	}, nil
-}
-
-type AutoscalingGroup struct {
+type AutoScalingGroup struct {
 	Provider             *domain.AWSProvider
 	AutoScalingGroupName string
+
+	stateSubnets []string
 }
 
 type AutoScalingGroupState struct {
@@ -52,8 +31,11 @@ type AutoScalingGroupState struct {
 	Subnets              []string `json:"subnets"`
 }
 
-func (asg AutoscalingGroup) Check() (bool, error) {
+func (asg AutoScalingGroup) Check() (bool, error) {
 	isValid := true
+
+	log.Printf("%s name=%s: checking resource state before failure simulation",
+		RESOURCE_TYPE, asg.AutoScalingGroupName)
 
 	client := autoscaling.NewFromConfig(asg.Provider.GetConnection())
 
@@ -68,13 +50,13 @@ func (asg AutoscalingGroup) Check() (bool, error) {
 
 	asgObj := describeAsgOutput.AutoScalingGroups[0]
 	if int(*asgObj.DesiredCapacity) > len(asgObj.Instances) {
-		return false, fmt.Errorf("Desired instance capacity for AutoscalingGroup %s is not met. Desired %d, found %d.",
+		return false, fmt.Errorf("Desired instance capacity for AutoScalingGroup %s is not met. Desired %d, found %d.",
 			asg.AutoScalingGroupName, *asgObj.DesiredCapacity, len(asgObj.Instances))
 	}
 
 	for _, instance := range asgObj.Instances {
 		if *instance.HealthStatus != "Healthy" {
-			return false, fmt.Errorf("Invalid health status of instance %s for AutoscalingGroup %s. Found %s.",
+			return false, fmt.Errorf("Invalid health status of instance %s for AutoScalingGroup %s. Found %s.",
 				*instance.InstanceId, asg.AutoScalingGroupName, *instance.HealthStatus)
 		}
 	}
@@ -82,7 +64,7 @@ func (asg AutoscalingGroup) Check() (bool, error) {
 	return isValid, nil
 }
 
-func (asg AutoscalingGroup) Save(stateManager *state.StateManager) error {
+func (asg AutoScalingGroup) Save(stateManager *state.StateManager) error {
 
 	client := autoscaling.NewFromConfig(asg.Provider.GetConnection())
 
@@ -117,7 +99,7 @@ func (asg AutoscalingGroup) Save(stateManager *state.StateManager) error {
 	return nil
 }
 
-func (asg AutoscalingGroup) Fail(azs []string) error {
+func (asg AutoScalingGroup) Fail(azs []string) error {
 	ec2Client := ec2.NewFromConfig(asg.Provider.GetConnection())
 	client := autoscaling.NewFromConfig(asg.Provider.GetConnection())
 
@@ -135,8 +117,11 @@ func (asg AutoscalingGroup) Fail(azs []string) error {
 
 	newSubnets, err := awsutils.FilterSubnetsNotInAzs(ec2Client, subnets, azs)
 
+	log.Printf("%s name=%s: failing AZs %s for autoscaling group",
+		RESOURCE_TYPE, asg.AutoScalingGroupName, azs)
+
 	updateAsgInput := &autoscaling.UpdateAutoScalingGroupInput{
-		AutoScalingGroupName: &asg.AutoScalingGroupName,
+		AutoScalingGroupName: aws.String(asg.AutoScalingGroupName),
 		VPCZoneIdentifier:    aws.String(strings.Join(newSubnets, ",")),
 	}
 
@@ -152,8 +137,8 @@ func (asg AutoscalingGroup) Fail(azs []string) error {
 		}
 	}
 	if len(instancesToTerminate) > 0 {
-		log.Printf("Terminating instances %s for autoscaling group %s that belonged to remove subnets.",
-			instancesToTerminate, asg.AutoScalingGroupName)
+		log.Printf("%s name=%s: terminating instances %s that belonged to removed subnets",
+			RESOURCE_TYPE, asg.AutoScalingGroupName, instancesToTerminate)
 
 		terminateInstancesInput := &ec2.TerminateInstancesInput{
 			InstanceIds: instancesToTerminate,
@@ -166,20 +151,16 @@ func (asg AutoscalingGroup) Fail(azs []string) error {
 
 	return nil
 }
-func (asg AutoscalingGroup) Restore(stateData []byte) error {
-	var state AutoScalingGroupState
-	err := json.Unmarshal(stateData, &state)
-	if err != nil {
-		return err
-	}
-	log.Printf("Restoring AZs for autoscaling group %s", state.AutoScalingGroupName)
+func (asg AutoScalingGroup) Restore() error {
+	log.Printf("%s name=%s: restoring AZs for autoscaling group", RESOURCE_TYPE, asg.AutoScalingGroupName)
+
 	client := autoscaling.NewFromConfig(asg.Provider.GetConnection())
 	updateAsgInput := &autoscaling.UpdateAutoScalingGroupInput{
-		AutoScalingGroupName: aws.String(state.AutoScalingGroupName),
-		VPCZoneIdentifier:    aws.String(strings.Join(state.Subnets, ",")),
+		AutoScalingGroupName: aws.String(asg.AutoScalingGroupName),
+		VPCZoneIdentifier:    aws.String(strings.Join(asg.stateSubnets, ",")),
 	}
 
-	_, err = client.UpdateAutoScalingGroup(context.TODO(), updateAsgInput)
+	_, err := client.UpdateAutoScalingGroup(context.TODO(), updateAsgInput)
 	if err != nil {
 		return err
 	}
