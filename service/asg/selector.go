@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/mcastellin/aws-fail-az/domain"
+	"github.com/mcastellin/aws-fail-az/service/awsutils"
 )
 
 func RestoreFromState(stateData []byte, provider *domain.AWSProvider) error {
@@ -38,16 +38,14 @@ func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider
 		return nil, err
 	}
 
-	if selector.Filter != "" {
-		tokens := strings.Split(selector.Filter, "=")
-		key := tokens[0]
-		value := tokens[1]
+	attributes, err := awsutils.TokenizeResourceFilter(selector.Filter, []string{"name"})
+	if err != nil {
+		return nil, err
+	}
 
-		if key == "name" {
-			asgNames = []string{value}
-		} else {
-			return nil, fmt.Errorf("Unrecognized key %s for type %s", key, RESOURCE_TYPE)
-		}
+	if len(attributes) == 1 {
+		asgNames = []string{attributes["name"]}
+
 	} else if len(selector.Tags) > 0 {
 		client := autoscaling.NewFromConfig(provider.GetConnection())
 		asgNames, err = filterAutoScalingGroupsByTags(client, selector.Tags)

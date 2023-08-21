@@ -1,6 +1,9 @@
-.PHONY: build
+.PHONY: test build install
 
 BUILD_VERSION=dev-snapshot
+
+test:
+	go test ./...
 
 build:
 	go build -ldflags="-X main.BuildVersion=$(BUILD_VERSION)" -o bin/aws-fail-az cmd/*.go

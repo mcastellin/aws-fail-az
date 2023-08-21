@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/mcastellin/aws-fail-az/domain"
+	"github.com/mcastellin/aws-fail-az/service/awsutils"
 )
 
 func RestoreFromState(stateData []byte, provider *domain.AWSProvider) error {
@@ -39,31 +39,20 @@ func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider
 		return nil, err
 	}
 
-	if selector.Filter != "" {
-		var cluster, service string
-		props := strings.Split(selector.Filter, ";")
-		for _, prop := range props {
-			tokens := strings.Split(prop, "=")
-			key := tokens[0]
-			value := tokens[1]
+	attributes, err := awsutils.TokenizeResourceFilter(selector.Filter, []string{"cluster", "service"})
+	if err != nil {
+		return nil, err
+	}
 
-			if key == "cluster" {
-				cluster = value
-			} else if key == "service" {
-				service = value
-			} else {
-				return nil, fmt.Errorf("Unrecognized key %s for type %s", key, RESOURCE_TYPE)
-			}
-		}
-
+	if len(attributes) == 2 {
 		objs = []domain.ConsistentStateService{
 			ECSService{
 				Provider:    provider,
-				ClusterArn:  cluster,
-				ServiceName: service,
+				ClusterArn:  attributes["cluster"],
+				ServiceName: attributes["service"],
 			},
 		}
-	} else {
+	} else if len(selector.Tags) > 0 {
 		client := ecs.NewFromConfig(provider.GetConnection())
 		clusters, err := searchAllClusters(client, selector.Tags)
 		if err != nil {
