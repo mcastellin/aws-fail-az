@@ -8,11 +8,11 @@
       "tags": [
         {
           "Name": "Environment",
-          "Value": "live"
+          "Value": "tutorial"
         },
         {
           "Name": "Application",
-          "Value": "comments"
+          "Value": "sample-app"
         }
       ]
     }
