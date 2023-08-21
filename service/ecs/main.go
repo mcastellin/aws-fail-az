@@ -21,6 +21,8 @@ type ECSService struct {
 	Provider    *domain.AWSProvider
 	ClusterArn  string
 	ServiceName string
+
+	stateSubnets []string
 }
 
 type ECSServiceState struct {
@@ -137,21 +139,15 @@ func (svc ECSService) Fail(azs []string) error {
 	return nil
 }
 
-func (svc ECSService) Restore(stateData []byte) error {
-	var state ECSServiceState
-	err := json.Unmarshal(stateData, &state)
-	if err != nil {
-		return err
-	}
-
+func (svc ECSService) Restore() error {
 	log.Printf("%s cluster=%s,name=%s: restoring AZs for ecs-service",
-		RESOURCE_TYPE, state.ClusterArn, state.ServiceName)
+		RESOURCE_TYPE, svc.ClusterArn, svc.ServiceName)
 
 	ecsClient := ecs.NewFromConfig(svc.Provider.GetConnection())
 
 	input := &ecs.DescribeServicesInput{
-		Cluster:  aws.String(state.ClusterArn),
-		Services: []string{*aws.String(state.ServiceName)},
+		Cluster:  aws.String(svc.ClusterArn),
+		Services: []string{*aws.String(svc.ServiceName)},
 	}
 
 	describeOutput, err := ecsClient.DescribeServices(context.TODO(), input)
@@ -162,11 +158,11 @@ func (svc ECSService) Restore(stateData []byte) error {
 	service := describeOutput.Services[0]
 
 	updatedNetworkConfig := service.NetworkConfiguration
-	updatedNetworkConfig.AwsvpcConfiguration.Subnets = state.Subnets
+	updatedNetworkConfig.AwsvpcConfiguration.Subnets = svc.stateSubnets
 
 	updateServiceInput := &ecs.UpdateServiceInput{
-		Cluster:              aws.String(state.ClusterArn),
-		Service:              aws.String(state.ServiceName),
+		Cluster:              aws.String(svc.ClusterArn),
+		Service:              aws.String(svc.ServiceName),
 		TaskDefinition:       service.TaskDefinition,
 		NetworkConfiguration: updatedNetworkConfig,
 	}

@@ -140,9 +140,9 @@ func RecoverCommand(namespace string) {
 	}
 	for _, s := range states {
 		if s.ResourceType == ecs.RESOURCE_TYPE {
-			err = ecs.ECSService{Provider: &provider}.Restore(s.State)
+			err = ecs.RestoreFromState(s.State, &provider)
 		} else if s.ResourceType == asg.RESOURCE_TYPE {
-			err = asg.AutoScalingGroup{Provider: &provider}.Restore(s.State)
+			err = asg.RestoreFromState(s.State, &provider)
 		} else {
 			err = fmt.Errorf("Unknown resource of type %s found in state for key %s. Could not recover.\n",
 				s.ResourceType,

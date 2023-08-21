@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -9,6 +10,21 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/mcastellin/aws-fail-az/domain"
 )
+
+func RestoreFromState(stateData []byte, provider *domain.AWSProvider) error {
+	var state ECSServiceState
+	err := json.Unmarshal(stateData, &state)
+	if err != nil {
+		return err
+	}
+
+	return ECSService{
+		Provider:     provider,
+		ClusterArn:   state.ClusterArn,
+		ServiceName:  state.ServiceName,
+		stateSubnets: state.Subnets,
+	}.Restore()
+}
 
 func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider) ([]domain.ConsistentStateService, error) {
 	if selector.Type != RESOURCE_TYPE {

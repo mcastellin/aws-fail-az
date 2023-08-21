@@ -12,7 +12,7 @@ type ConsistentStateService interface {
 	Check() (bool, error)
 	Save(*state.StateManager) error
 	Fail([]string) error
-	Restore([]byte) error
+	Restore() error
 }
 
 // AZ Failure Configuration

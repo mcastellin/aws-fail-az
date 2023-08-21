@@ -22,6 +22,8 @@ const RESOURCE_TYPE string = "auto-scaling-group"
 type AutoScalingGroup struct {
 	Provider             *domain.AWSProvider
 	AutoScalingGroupName string
+
+	stateSubnets []string
 }
 
 type AutoScalingGroupState struct {
@@ -149,22 +151,16 @@ func (asg AutoScalingGroup) Fail(azs []string) error {
 
 	return nil
 }
-func (asg AutoScalingGroup) Restore(stateData []byte) error {
-	var state AutoScalingGroupState
-	err := json.Unmarshal(stateData, &state)
-	if err != nil {
-		return err
-	}
-
-	log.Printf("%s name=%s: restoring AZs for autoscaling group", RESOURCE_TYPE, state.AutoScalingGroupName)
+func (asg AutoScalingGroup) Restore() error {
+	log.Printf("%s name=%s: restoring AZs for autoscaling group", RESOURCE_TYPE, asg.AutoScalingGroupName)
 
 	client := autoscaling.NewFromConfig(asg.Provider.GetConnection())
 	updateAsgInput := &autoscaling.UpdateAutoScalingGroupInput{
-		AutoScalingGroupName: aws.String(state.AutoScalingGroupName),
-		VPCZoneIdentifier:    aws.String(strings.Join(state.Subnets, ",")),
+		AutoScalingGroupName: aws.String(asg.AutoScalingGroupName),
+		VPCZoneIdentifier:    aws.String(strings.Join(asg.stateSubnets, ",")),
 	}
 
-	_, err = client.UpdateAutoScalingGroup(context.TODO(), updateAsgInput)
+	_, err := client.UpdateAutoScalingGroup(context.TODO(), updateAsgInput)
 	if err != nil {
 		return err
 	}

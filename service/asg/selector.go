@@ -2,12 +2,27 @@ package asg
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/mcastellin/aws-fail-az/domain"
 )
+
+func RestoreFromState(stateData []byte, provider *domain.AWSProvider) error {
+	var state AutoScalingGroupState
+	err := json.Unmarshal(stateData, &state)
+	if err != nil {
+		return err
+	}
+
+	return AutoScalingGroup{
+		Provider:             provider,
+		AutoScalingGroupName: state.AutoScalingGroupName,
+		stateSubnets:         state.Subnets,
+	}.Restore()
+}
 
 func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider) ([]domain.ConsistentStateService, error) {
 
