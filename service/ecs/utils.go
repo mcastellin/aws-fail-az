@@ -11,40 +11,41 @@ import (
 )
 
 func stopTasksInRemovedSubnets(client *ecs.Client, cluster string, service string, validSubnets []string) error {
-	//TODO: list tasks using paginator instead
-	listTasksInput := &ecs.ListTasksInput{
+
+	paginator := ecs.NewListTasksPaginator(client, &ecs.ListTasksInput{
 		Cluster:     aws.String(cluster),
 		ServiceName: aws.String(service),
-	}
-	listTasksOutput, err := client.ListTasks(context.TODO(), listTasksInput)
-	if err != nil {
-		return err
-	}
+	})
 
-	describeTasksInput := &ecs.DescribeTasksInput{
-		Cluster: aws.String(cluster),
-		Tasks:   listTasksOutput.TaskArns,
-	}
-	describeTasksOutput, err := client.DescribeTasks(context.TODO(), describeTasksInput)
-	if err != nil {
-		return err
-	}
+	for paginator.HasMorePages() {
+		listTasksOutput, err := paginator.NextPage(context.TODO())
+		if err != nil {
+			return err
+		}
+		describeTasksOutput, err := client.DescribeTasks(context.TODO(), &ecs.DescribeTasksInput{
+			Cluster: aws.String(cluster),
+			Tasks:   listTasksOutput.TaskArns,
+		})
+		if err != nil {
+			return err
+		}
 
-	for _, task := range describeTasksOutput.Tasks {
-		taskSubnets := getTaskSubnets(task)
-		for _, sub := range taskSubnets {
-			if !slices.Contains(validSubnets, sub) {
-				stopTaskInput := &ecs.StopTaskInput{
-					Cluster: aws.String(cluster),
-					Task:    task.TaskArn,
-					Reason:  aws.String("AZ failure simulation. Task belonged to removed subnet."),
+		for _, task := range describeTasksOutput.Tasks {
+			taskSubnets := getTaskSubnets(task)
+			for _, sub := range taskSubnets {
+				if !slices.Contains(validSubnets, sub) {
+					stopTaskInput := &ecs.StopTaskInput{
+						Cluster: aws.String(cluster),
+						Task:    task.TaskArn,
+						Reason:  aws.String("AZ failure simulation. Task belonged to removed subnet."),
+					}
+					_, err = client.StopTask(context.TODO(), stopTaskInput)
+					if err != nil {
+						return err
+					}
+					log.Printf("%s cluster=%s,name=%s: terminating task %s running in removed subnets.",
+						RESOURCE_TYPE, cluster, service, *task.TaskArn)
 				}
-				_, err = client.StopTask(context.TODO(), stopTaskInput)
-				if err != nil {
-					return err
-				}
-				log.Printf("%s cluster=%s,name=%s: terminating task %s running in removed subnets.",
-					RESOURCE_TYPE, cluster, service, *task.TaskArn)
 			}
 		}
 	}
