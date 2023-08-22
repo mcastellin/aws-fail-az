@@ -37,13 +37,13 @@ func (asg AutoScalingGroup) Check() (bool, error) {
 	log.Printf("%s name=%s: checking resource state before failure simulation",
 		RESOURCE_TYPE, asg.AutoScalingGroupName)
 
-	client := autoscaling.NewFromConfig(asg.Provider.GetConnection())
+	api := domain.NewAutoScalingApi(asg.Provider)
 
 	input := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []string{asg.AutoScalingGroupName},
 	}
 
-	describeAsgOutput, err := client.DescribeAutoScalingGroups(context.TODO(), input)
+	describeAsgOutput, err := api.DescribeAutoScalingGroups(context.TODO(), input)
 	if err != nil {
 		return false, err
 	}
@@ -66,13 +66,13 @@ func (asg AutoScalingGroup) Check() (bool, error) {
 
 func (asg AutoScalingGroup) Save(stateManager *state.StateManager) error {
 
-	client := autoscaling.NewFromConfig(asg.Provider.GetConnection())
+	api := domain.NewAutoScalingApi(asg.Provider)
 
 	input := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []string{asg.AutoScalingGroupName},
 	}
 
-	describeAsgOutput, err := client.DescribeAutoScalingGroups(context.TODO(), input)
+	describeAsgOutput, err := api.DescribeAutoScalingGroups(context.TODO(), input)
 	if err != nil {
 		return err
 	}
@@ -100,14 +100,14 @@ func (asg AutoScalingGroup) Save(stateManager *state.StateManager) error {
 }
 
 func (asg AutoScalingGroup) Fail(azs []string) error {
-	ec2Client := ec2.NewFromConfig(asg.Provider.GetConnection())
-	client := autoscaling.NewFromConfig(asg.Provider.GetConnection())
+	ec2Api := domain.NewEc2Api(asg.Provider)
+	api := domain.NewAutoScalingApi(asg.Provider)
 
 	input := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []string{asg.AutoScalingGroupName},
 	}
 
-	describeAsgOutput, err := client.DescribeAutoScalingGroups(context.TODO(), input)
+	describeAsgOutput, err := api.DescribeAutoScalingGroups(context.TODO(), input)
 	if err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func (asg AutoScalingGroup) Fail(azs []string) error {
 	asgObj := describeAsgOutput.AutoScalingGroups[0]
 	subnets := strings.Split(*asgObj.VPCZoneIdentifier, ",")
 
-	newSubnets, err := awsutils.FilterSubnetsNotInAzs(ec2Client, subnets, azs)
+	newSubnets, err := awsutils.FilterSubnetsNotInAzs(ec2Api, subnets, azs)
 
 	log.Printf("%s name=%s: failing AZs %s for autoscaling group",
 		RESOURCE_TYPE, asg.AutoScalingGroupName, azs)
@@ -125,7 +125,7 @@ func (asg AutoScalingGroup) Fail(azs []string) error {
 		VPCZoneIdentifier:    aws.String(strings.Join(newSubnets, ",")),
 	}
 
-	_, err = client.UpdateAutoScalingGroup(context.TODO(), updateAsgInput)
+	_, err = api.UpdateAutoScalingGroup(context.TODO(), updateAsgInput)
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func (asg AutoScalingGroup) Fail(azs []string) error {
 		terminateInstancesInput := &ec2.TerminateInstancesInput{
 			InstanceIds: instancesToTerminate,
 		}
-		_, err = ec2Client.TerminateInstances(context.TODO(), terminateInstancesInput)
+		_, err = ec2Api.TerminateInstances(context.TODO(), terminateInstancesInput)
 		if err != nil {
 			return err
 		}

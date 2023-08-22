@@ -211,6 +211,8 @@ func (manager StateManager) ReadStates() ([]ResourceState, error) {
 		return []ResourceState{}, err
 	}
 
+	resourceStates := []ResourceState{}
+
 	queryInput := &dynamodb.QueryInput{
 		TableName:                 aws.String(manager.TableName),
 		IndexName:                 aws.String("LSINamespace"),
@@ -218,16 +220,21 @@ func (manager StateManager) ReadStates() ([]ResourceState, error) {
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
 	}
-	response, err := manager.Client.Query(context.TODO(), queryInput)
-	if err != nil {
-		return []ResourceState{}, err
-	}
+	paginator := dynamodb.NewQueryPaginator(manager.Client, queryInput)
+	for paginator.HasMorePages() {
+		queryOutput, err := paginator.NextPage(context.TODO())
+		if err != nil {
+			return []ResourceState{}, err
+		}
 
-	var resourceStates []ResourceState
-	err = attributevalue.UnmarshalListOfMaps(response.Items, &resourceStates)
-	if err != nil {
-		log.Println("Error unmarshalling resource states")
-		return []ResourceState{}, err
+		var states []ResourceState
+		err = attributevalue.UnmarshalListOfMaps(queryOutput.Items, &states)
+		if err != nil {
+			log.Println("Error unmarshalling resource states")
+			return []ResourceState{}, err
+		} else {
+			resourceStates = append(resourceStates, states...)
+		}
 	}
 
 	return resourceStates, nil

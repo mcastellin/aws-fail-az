@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/mcastellin/aws-fail-az/domain"
+	"github.com/mcastellin/aws-fail-az/service/awsutils"
 )
 
 func RestoreFromState(stateData []byte, provider *domain.AWSProvider) error {
@@ -39,33 +39,22 @@ func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider
 		return nil, err
 	}
 
-	if selector.Filter != "" {
-		var cluster, service string
-		props := strings.Split(selector.Filter, ";")
-		for _, prop := range props {
-			tokens := strings.Split(prop, "=")
-			key := tokens[0]
-			value := tokens[1]
+	attributes, err := awsutils.TokenizeResourceFilter(selector.Filter, []string{"cluster", "service"})
+	if err != nil {
+		return nil, err
+	}
 
-			if key == "cluster" {
-				cluster = value
-			} else if key == "service" {
-				service = value
-			} else {
-				return nil, fmt.Errorf("Unrecognized key %s for type %s", key, RESOURCE_TYPE)
-			}
-		}
-
+	if len(attributes) == 2 {
 		objs = []domain.ConsistentStateService{
 			ECSService{
 				Provider:    provider,
-				ClusterArn:  cluster,
-				ServiceName: service,
+				ClusterArn:  attributes["cluster"],
+				ServiceName: attributes["service"],
 			},
 		}
-	} else {
-		client := ecs.NewFromConfig(provider.GetConnection())
-		clusters, err := searchAllClusters(client, selector.Tags)
+	} else if len(selector.Tags) > 0 {
+		api := domain.NewEcsApi(provider)
+		clusters, err := searchAllClusters(api, selector.Tags)
 		if err != nil {
 			return nil, err
 		}
@@ -84,10 +73,10 @@ func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider
 	return objs, nil
 }
 
-func searchAllClusters(client *ecs.Client, tags []domain.AWSTag) (map[string][]string, error) {
+func searchAllClusters(api domain.EcsApi, tags []domain.AWSTag) (map[string][]string, error) {
 	allClusters := map[string][]string{}
 
-	paginator := ecs.NewListClustersPaginator(client, &ecs.ListClustersInput{})
+	paginator := api.NewListClustersPaginator(&ecs.ListClustersInput{})
 	for paginator.HasMorePages() {
 		response, err := paginator.NextPage(context.TODO())
 		if err != nil {
@@ -95,7 +84,7 @@ func searchAllClusters(client *ecs.Client, tags []domain.AWSTag) (map[string][]s
 		}
 
 		for _, cluster := range response.ClusterArns {
-			serviceArns, err := filterECSServicesByTag(client, cluster, tags)
+			serviceArns, err := filterECSServicesByTag(api, cluster, tags)
 			if err != nil {
 				return nil, err
 			}
@@ -107,10 +96,10 @@ func searchAllClusters(client *ecs.Client, tags []domain.AWSTag) (map[string][]s
 	return allClusters, nil
 }
 
-func filterECSServicesByTag(client *ecs.Client, cluster string, tags []domain.AWSTag) ([]string, error) {
+func filterECSServicesByTag(api domain.EcsApi, cluster string, tags []domain.AWSTag) ([]string, error) {
 	serviceArns := []string{}
 
-	paginator := ecs.NewListServicesPaginator(client, &ecs.ListServicesInput{
+	paginator := api.NewListServicesPaginator(&ecs.ListServicesInput{
 		Cluster: aws.String(cluster),
 	})
 
@@ -121,7 +110,7 @@ func filterECSServicesByTag(client *ecs.Client, cluster string, tags []domain.AW
 		}
 
 		for _, arn := range response.ServiceArns {
-			service, err := client.ListTagsForResource(context.TODO(), &ecs.ListTagsForResourceInput{
+			service, err := api.ListTagsForResource(context.TODO(), &ecs.ListTagsForResourceInput{
 				ResourceArn: aws.String(arn),
 			})
 			if err != nil {

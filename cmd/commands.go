@@ -72,16 +72,17 @@ func FailCommand(namespace string, readFromStdin bool, configFile string) {
 	for _, svc := range faultConfig.Services {
 		var svcConfigs []domain.ConsistentStateService
 		var err error
-		if svc.Type == ecs.RESOURCE_TYPE {
+
+		switch {
+		case svc.Type == ecs.RESOURCE_TYPE:
 			svcConfigs, err = ecs.NewFromConfig(svc, &provider)
-			if err != nil {
-				log.Panic(err)
-			}
-		} else if svc.Type == asg.RESOURCE_TYPE {
+		case svc.Type == asg.RESOURCE_TYPE:
 			svcConfigs, err = asg.NewFromConfig(svc, &provider)
-			if err != nil {
-				log.Panic(err)
-			}
+		default:
+			err = fmt.Errorf("Could not recognize resource type %s", svc.Type)
+		}
+		if err != nil {
+			log.Panic(err)
 		}
 		allServices = append(allServices, svcConfigs...)
 

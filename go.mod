@@ -12,6 +12,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.112.0
 	github.com/aws/aws-sdk-go-v2/service/ecs v1.29.3
 	github.com/spf13/cobra v1.7.0
+	github.com/stretchr/testify v1.8.4
+	go.uber.org/mock v0.2.0
 	golang.org/x/exp v0.0.0-20230811145659-89c5cff77bcb
 )
 
@@ -29,7 +31,10 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.15.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.21.2 // indirect
 	github.com/aws/smithy-go v1.14.1 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

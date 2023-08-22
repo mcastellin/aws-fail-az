@@ -7,7 +7,6 @@ import (
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/mcastellin/aws-fail-az/domain"
 	"github.com/mcastellin/aws-fail-az/service/awsutils"
@@ -37,9 +36,9 @@ func (svc ECSService) Check() (bool, error) {
 	log.Printf("%s cluster=%s,name=%s: checking resource state before failure simulation",
 		RESOURCE_TYPE, svc.ClusterArn, svc.ServiceName)
 
-	client := ecs.NewFromConfig(svc.Provider.GetConnection())
+	api := domain.NewEcsApi(svc.Provider)
 
-	result, err := serviceStable(client, svc.ClusterArn, svc.ServiceName)
+	result, err := serviceStable(api, svc.ClusterArn, svc.ServiceName)
 	if err != nil {
 		return false, nil
 	} else {
@@ -50,14 +49,14 @@ func (svc ECSService) Check() (bool, error) {
 }
 
 func (svc ECSService) Save(stateManager *state.StateManager) error {
-	ecsClient := ecs.NewFromConfig(svc.Provider.GetConnection())
+	api := domain.NewEcsApi(svc.Provider)
 
 	input := &ecs.DescribeServicesInput{
 		Cluster:  aws.String(svc.ClusterArn),
 		Services: []string{*aws.String(svc.ServiceName)},
 	}
 
-	describeOutput, err := ecsClient.DescribeServices(context.TODO(), input)
+	describeOutput, err := api.DescribeServices(context.TODO(), input)
 	if err != nil {
 		return err
 	}
@@ -87,15 +86,15 @@ func (svc ECSService) Save(stateManager *state.StateManager) error {
 }
 
 func (svc ECSService) Fail(azs []string) error {
-	ec2Client := ec2.NewFromConfig(svc.Provider.GetConnection())
-	ecsClient := ecs.NewFromConfig(svc.Provider.GetConnection())
+	ec2Api := domain.NewEc2Api(svc.Provider)
+	ecsApi := domain.NewEcsApi(svc.Provider)
 
 	input := &ecs.DescribeServicesInput{
 		Cluster:  aws.String(svc.ClusterArn),
 		Services: []string{*aws.String(svc.ServiceName)},
 	}
 
-	describeOutput, err := ecsClient.DescribeServices(context.TODO(), input)
+	describeOutput, err := ecsApi.DescribeServices(context.TODO(), input)
 	if err != nil {
 		return err
 	}
@@ -103,7 +102,7 @@ func (svc ECSService) Fail(azs []string) error {
 	service := describeOutput.Services[0]
 	subnets := service.NetworkConfiguration.AwsvpcConfiguration.Subnets
 
-	newSubnets, err := awsutils.FilterSubnetsNotInAzs(ec2Client, subnets, azs)
+	newSubnets, err := awsutils.FilterSubnetsNotInAzs(ec2Api, subnets, azs)
 	if err != nil {
 		log.Printf("Error while filtering subnets by AZs: %v", err)
 		return err
@@ -126,12 +125,12 @@ func (svc ECSService) Fail(azs []string) error {
 		NetworkConfiguration: updatedNetworkConfig,
 	}
 
-	_, err = ecsClient.UpdateService(context.TODO(), updateServiceInput)
+	_, err = ecsApi.UpdateService(context.TODO(), updateServiceInput)
 	if err != nil {
 		return err
 	}
 
-	err = stopTasksInRemovedSubnets(ecsClient, svc.ClusterArn, svc.ServiceName, newSubnets)
+	err = stopTasksInRemovedSubnets(ecsApi, svc.ClusterArn, svc.ServiceName, newSubnets)
 	if err != nil {
 		return err
 	}
@@ -143,14 +142,14 @@ func (svc ECSService) Restore() error {
 	log.Printf("%s cluster=%s,name=%s: restoring AZs for ecs-service",
 		RESOURCE_TYPE, svc.ClusterArn, svc.ServiceName)
 
-	ecsClient := ecs.NewFromConfig(svc.Provider.GetConnection())
+	api := domain.NewEcsApi(svc.Provider)
 
 	input := &ecs.DescribeServicesInput{
 		Cluster:  aws.String(svc.ClusterArn),
 		Services: []string{*aws.String(svc.ServiceName)},
 	}
 
-	describeOutput, err := ecsClient.DescribeServices(context.TODO(), input)
+	describeOutput, err := api.DescribeServices(context.TODO(), input)
 	if err != nil {
 		return err
 	}
@@ -167,7 +166,7 @@ func (svc ECSService) Restore() error {
 		NetworkConfiguration: updatedNetworkConfig,
 	}
 
-	_, err = ecsClient.UpdateService(context.TODO(), updateServiceInput)
+	_, err = api.UpdateService(context.TODO(), updateServiceInput)
 	if err != nil {
 		return err
 	}
