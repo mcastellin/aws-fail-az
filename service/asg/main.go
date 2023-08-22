@@ -37,13 +37,13 @@ func (asg AutoScalingGroup) Check() (bool, error) {
 	log.Printf("%s name=%s: checking resource state before failure simulation",
 		RESOURCE_TYPE, asg.AutoScalingGroupName)
 
-	client := autoscaling.NewFromConfig(asg.Provider.GetConnection())
+	api := domain.NewAutoScalingApi(asg.Provider)
 
 	input := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []string{asg.AutoScalingGroupName},
 	}
 
-	describeAsgOutput, err := client.DescribeAutoScalingGroups(context.TODO(), input)
+	describeAsgOutput, err := api.DescribeAutoScalingGroups(context.TODO(), input)
 	if err != nil {
 		return false, err
 	}
@@ -66,13 +66,13 @@ func (asg AutoScalingGroup) Check() (bool, error) {
 
 func (asg AutoScalingGroup) Save(stateManager *state.StateManager) error {
 
-	client := autoscaling.NewFromConfig(asg.Provider.GetConnection())
+	api := domain.NewAutoScalingApi(asg.Provider)
 
 	input := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []string{asg.AutoScalingGroupName},
 	}
 
-	describeAsgOutput, err := client.DescribeAutoScalingGroups(context.TODO(), input)
+	describeAsgOutput, err := api.DescribeAutoScalingGroups(context.TODO(), input)
 	if err != nil {
 		return err
 	}
@@ -101,13 +101,13 @@ func (asg AutoScalingGroup) Save(stateManager *state.StateManager) error {
 
 func (asg AutoScalingGroup) Fail(azs []string) error {
 	ec2Client := ec2.NewFromConfig(asg.Provider.GetConnection())
-	client := autoscaling.NewFromConfig(asg.Provider.GetConnection())
+	api := domain.NewAutoScalingApi(asg.Provider)
 
 	input := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []string{asg.AutoScalingGroupName},
 	}
 
-	describeAsgOutput, err := client.DescribeAutoScalingGroups(context.TODO(), input)
+	describeAsgOutput, err := api.DescribeAutoScalingGroups(context.TODO(), input)
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,7 @@ func (asg AutoScalingGroup) Fail(azs []string) error {
 		VPCZoneIdentifier:    aws.String(strings.Join(newSubnets, ",")),
 	}
 
-	_, err = client.UpdateAutoScalingGroup(context.TODO(), updateAsgInput)
+	_, err = api.UpdateAutoScalingGroup(context.TODO(), updateAsgInput)
 	if err != nil {
 		return err
 	}

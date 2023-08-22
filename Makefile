@@ -1,4 +1,4 @@
-.PHONY: test build install
+.PHONY: test build install mockgen
 
 BUILD_VERSION=dev-snapshot
 
@@ -12,3 +12,6 @@ install: build
 	mkdir -p ~/bin/
 	cp bin/aws-fail-az ~/bin/aws-fail-az
 	chmod 700 ~/bin/aws-fail-az
+
+mockgen:
+	mockgen -source domain/asg.go -destination mock_domain/asg.go

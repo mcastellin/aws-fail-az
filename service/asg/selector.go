@@ -47,7 +47,7 @@ func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider
 		asgNames = []string{attributes["name"]}
 
 	} else if len(selector.Tags) > 0 {
-		api := NewApiFromConfig(provider)
+		api := domain.NewAutoScalingApi(provider)
 		asgNames, err = filterAutoScalingGroupsByTags(api, selector.Tags)
 		if err != nil {
 			return nil, err
@@ -67,10 +67,10 @@ func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider
 	return objs, nil
 }
 
-func filterAutoScalingGroupsByTags(api APIConfig, tags []domain.AWSTag) ([]string, error) {
+func filterAutoScalingGroupsByTags(api domain.AutoScalingApi, tags []domain.AWSTag) ([]string, error) {
 	groupNames := []string{}
 
-	paginator := api.NewDescribeAutoScalingGroupsPager(&autoscaling.DescribeAutoScalingGroupsInput{})
+	paginator := api.NewDescribeAutoScalingGroupsPaginator(&autoscaling.DescribeAutoScalingGroupsInput{})
 	for paginator.HasMorePages() {
 		response, err := paginator.NextPage(context.TODO())
 		if err != nil {
