@@ -1,6 +1,9 @@
-.PHONY: test build install mockgen
+.PHONY: clean test build install mockgen
 
 BUILD_VERSION=dev-snapshot
+
+clean:
+	go clean -testcache
 
 test:
 	go test ./...
@@ -15,3 +18,4 @@ install: build
 
 mockgen:
 	mockgen -source domain/asg.go -destination mock_domain/asg.go
+	mockgen -source domain/ec2.go -destination mock_domain/ec2.go

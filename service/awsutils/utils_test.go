@@ -7,38 +7,39 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/mcastellin/aws-fail-az/mock_domain"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
-
-type mockEC2DescribeSubnetsImpl struct{}
-
-func (m mockEC2DescribeSubnetsImpl) DescribeSubnets(ctx context.Context,
-	params *ec2.DescribeSubnetsInput,
-	optFns ...func(*ec2.Options)) (*ec2.DescribeSubnetsOutput, error) {
-
-	output := &ec2.DescribeSubnetsOutput{
-		Subnets: []types.Subnet{
-			{
-				SubnetId:         aws.String("s-1234"),
-				AvailabilityZone: aws.String("us-east-1b"),
-			},
-			{
-				SubnetId:         aws.String("s-0000"),
-				AvailabilityZone: aws.String("us-east-1a"),
-			},
-		},
-	}
-
-	return output, nil
-}
 
 func TestFilterSubnetsNotInAzs(t *testing.T) {
 
-	api := &mockEC2DescribeSubnetsImpl{}
+	ctrl, _ := gomock.WithContext(context.Background(), t)
+	defer ctrl.Finish()
+	mockApi := mock_domain.NewMockEc2Api(ctrl)
 
-	newSubnets, err := FilterSubnetsNotInAzs(api, []string{"s-1234", "s-0000"}, []string{"us-east-1b"})
+	mockApi.EXPECT().DescribeSubnets(gomock.Any(), gomock.Any(), gomock.Any()).
+		Times(1).
+		DoAndReturn(func(ctx context.Context, params *ec2.DescribeSubnetsInput, f ...func(*ec2.Options)) (*ec2.DescribeSubnetsOutput, error) {
+			output := &ec2.DescribeSubnetsOutput{
+				Subnets: []types.Subnet{
+					{
+						SubnetId:         aws.String("s-1234"),
+						AvailabilityZone: aws.String("us-east-1b"),
+					},
+					{
+						SubnetId:         aws.String("s-0000"),
+						AvailabilityZone: aws.String("us-east-1a"),
+					},
+				},
+			}
 
-	assert.Nil(t, err, "No errros should have been returned")
+			return output, nil
+		})
+
+	newSubnets, err := FilterSubnetsNotInAzs(mockApi, []string{"s-1234", "s-0000"}, []string{"us-east-1b"})
+
+	assert.Nil(t, err)
 	assert.Equal(t, []string{"s-0000"}, newSubnets, "Should have returned only subnet not in failing az")
 
 }

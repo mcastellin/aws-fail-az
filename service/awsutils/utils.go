@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/mcastellin/aws-fail-az/domain"
 	"golang.org/x/exp/slices"
 )
 
@@ -44,11 +45,11 @@ func TokenizeResourceFilter(filter string, validKeys []string) (map[string]strin
 // Filter a list of subnets by Availability Zone
 // Returns all subnets in the `subnetIds` list that are not attached to one of the availability
 // zones in the `azs` parameter
-func FilterSubnetsNotInAzs(client EC2DescribeSubnetsAPI, subnetIds []string, azs []string) ([]string, error) {
+func FilterSubnetsNotInAzs(api domain.Ec2Api, subnetIds []string, azs []string) ([]string, error) {
 	input := &ec2.DescribeSubnetsInput{
 		SubnetIds: subnetIds,
 	}
-	describeSubnetsOutput, err := client.DescribeSubnets(context.TODO(), input)
+	describeSubnetsOutput, err := api.DescribeSubnets(context.TODO(), input)
 	if err != nil {
 		return []string{}, err
 	}
