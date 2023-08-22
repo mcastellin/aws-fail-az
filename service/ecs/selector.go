@@ -53,8 +53,8 @@ func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider
 			},
 		}
 	} else if len(selector.Tags) > 0 {
-		client := ecs.NewFromConfig(provider.GetConnection())
-		clusters, err := searchAllClusters(client, selector.Tags)
+		api := domain.NewEcsApi(provider)
+		clusters, err := searchAllClusters(api, selector.Tags)
 		if err != nil {
 			return nil, err
 		}
@@ -73,10 +73,10 @@ func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider
 	return objs, nil
 }
 
-func searchAllClusters(client *ecs.Client, tags []domain.AWSTag) (map[string][]string, error) {
+func searchAllClusters(api domain.EcsApi, tags []domain.AWSTag) (map[string][]string, error) {
 	allClusters := map[string][]string{}
 
-	paginator := ecs.NewListClustersPaginator(client, &ecs.ListClustersInput{})
+	paginator := api.NewListClustersPaginator(&ecs.ListClustersInput{})
 	for paginator.HasMorePages() {
 		response, err := paginator.NextPage(context.TODO())
 		if err != nil {
@@ -84,7 +84,7 @@ func searchAllClusters(client *ecs.Client, tags []domain.AWSTag) (map[string][]s
 		}
 
 		for _, cluster := range response.ClusterArns {
-			serviceArns, err := filterECSServicesByTag(client, cluster, tags)
+			serviceArns, err := filterECSServicesByTag(api, cluster, tags)
 			if err != nil {
 				return nil, err
 			}
@@ -96,10 +96,10 @@ func searchAllClusters(client *ecs.Client, tags []domain.AWSTag) (map[string][]s
 	return allClusters, nil
 }
 
-func filterECSServicesByTag(client *ecs.Client, cluster string, tags []domain.AWSTag) ([]string, error) {
+func filterECSServicesByTag(api domain.EcsApi, cluster string, tags []domain.AWSTag) ([]string, error) {
 	serviceArns := []string{}
 
-	paginator := ecs.NewListServicesPaginator(client, &ecs.ListServicesInput{
+	paginator := api.NewListServicesPaginator(&ecs.ListServicesInput{
 		Cluster: aws.String(cluster),
 	})
 
@@ -110,7 +110,7 @@ func filterECSServicesByTag(client *ecs.Client, cluster string, tags []domain.AW
 		}
 
 		for _, arn := range response.ServiceArns {
-			service, err := client.ListTagsForResource(context.TODO(), &ecs.ListTagsForResourceInput{
+			service, err := api.ListTagsForResource(context.TODO(), &ecs.ListTagsForResourceInput{
 				ResourceArn: aws.String(arn),
 			})
 			if err != nil {

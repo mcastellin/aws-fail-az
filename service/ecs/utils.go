@@ -7,12 +7,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	"github.com/mcastellin/aws-fail-az/domain"
 	"golang.org/x/exp/slices"
 )
 
-func stopTasksInRemovedSubnets(client *ecs.Client, cluster string, service string, validSubnets []string) error {
+func stopTasksInRemovedSubnets(api domain.EcsApi, cluster string, service string, validSubnets []string) error {
 
-	paginator := ecs.NewListTasksPaginator(client, &ecs.ListTasksInput{
+	paginator := api.NewListTasksPaginator(&ecs.ListTasksInput{
 		Cluster:     aws.String(cluster),
 		ServiceName: aws.String(service),
 	})
@@ -22,7 +23,7 @@ func stopTasksInRemovedSubnets(client *ecs.Client, cluster string, service strin
 		if err != nil {
 			return err
 		}
-		describeTasksOutput, err := client.DescribeTasks(context.TODO(), &ecs.DescribeTasksInput{
+		describeTasksOutput, err := api.DescribeTasks(context.TODO(), &ecs.DescribeTasksInput{
 			Cluster: aws.String(cluster),
 			Tasks:   listTasksOutput.TaskArns,
 		})
@@ -39,7 +40,7 @@ func stopTasksInRemovedSubnets(client *ecs.Client, cluster string, service strin
 						Task:    task.TaskArn,
 						Reason:  aws.String("AZ failure simulation. Task belonged to removed subnet."),
 					}
-					_, err = client.StopTask(context.TODO(), stopTaskInput)
+					_, err = api.StopTask(context.TODO(), stopTaskInput)
 					if err != nil {
 						return err
 					}
