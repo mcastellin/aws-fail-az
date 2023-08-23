@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/mcastellin/aws-fail-az/domain"
+	"github.com/mcastellin/aws-fail-az/awsapis"
 	"github.com/mcastellin/aws-fail-az/service/awsutils"
 	"github.com/mcastellin/aws-fail-az/state"
 	"golang.org/x/exp/slices"
@@ -20,7 +20,7 @@ import (
 const RESOURCE_TYPE string = "auto-scaling-group"
 
 type AutoScalingGroup struct {
-	Provider             *domain.AWSProvider
+	Provider             *awsapis.AWSProvider
 	AutoScalingGroupName string
 
 	stateSubnets []string
@@ -37,7 +37,7 @@ func (asg AutoScalingGroup) Check() (bool, error) {
 	log.Printf("%s name=%s: checking resource state before failure simulation",
 		RESOURCE_TYPE, asg.AutoScalingGroupName)
 
-	api := domain.NewAutoScalingApi(asg.Provider)
+	api := awsapis.NewAutoScalingApi(asg.Provider)
 
 	input := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []string{asg.AutoScalingGroupName},
@@ -64,9 +64,9 @@ func (asg AutoScalingGroup) Check() (bool, error) {
 	return isValid, nil
 }
 
-func (asg AutoScalingGroup) Save(stateManager *state.StateManager) error {
+func (asg AutoScalingGroup) Save(stateManager state.StateManager) error {
 
-	api := domain.NewAutoScalingApi(asg.Provider)
+	api := awsapis.NewAutoScalingApi(asg.Provider)
 
 	input := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []string{asg.AutoScalingGroupName},
@@ -100,8 +100,8 @@ func (asg AutoScalingGroup) Save(stateManager *state.StateManager) error {
 }
 
 func (asg AutoScalingGroup) Fail(azs []string) error {
-	ec2Api := domain.NewEc2Api(asg.Provider)
-	api := domain.NewAutoScalingApi(asg.Provider)
+	ec2Api := awsapis.NewEc2Api(asg.Provider)
+	api := awsapis.NewAutoScalingApi(asg.Provider)
 
 	input := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []string{asg.AutoScalingGroupName},

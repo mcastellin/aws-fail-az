@@ -7,11 +7,12 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/mcastellin/aws-fail-az/awsapis"
 	"github.com/mcastellin/aws-fail-az/domain"
 	"github.com/mcastellin/aws-fail-az/service/awsutils"
 )
 
-func RestoreFromState(stateData []byte, provider *domain.AWSProvider) error {
+func RestoreFromState(stateData []byte, provider *awsapis.AWSProvider) error {
 	var state ECSServiceState
 	err := json.Unmarshal(stateData, &state)
 	if err != nil {
@@ -26,7 +27,7 @@ func RestoreFromState(stateData []byte, provider *domain.AWSProvider) error {
 	}.Restore()
 }
 
-func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider) ([]domain.ConsistentStateService, error) {
+func NewFromConfig(selector domain.ServiceSelector, provider *awsapis.AWSProvider) ([]domain.ConsistentStateService, error) {
 	if selector.Type != RESOURCE_TYPE {
 		return nil, fmt.Errorf("Unable to create ECSService object from selector of type %s.", selector.Type)
 	}
@@ -53,7 +54,7 @@ func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider
 			},
 		}
 	} else if len(selector.Tags) > 0 {
-		api := domain.NewEcsApi(provider)
+		api := awsapis.NewEcsApi(provider)
 		clusters, err := searchAllClusters(api, selector.Tags)
 		if err != nil {
 			return nil, err
@@ -73,7 +74,7 @@ func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider
 	return objs, nil
 }
 
-func searchAllClusters(api domain.EcsApi, tags []domain.AWSTag) (map[string][]string, error) {
+func searchAllClusters(api awsapis.EcsApi, tags []domain.AWSTag) (map[string][]string, error) {
 	allClusters := map[string][]string{}
 
 	paginator := api.NewListClustersPaginator(&ecs.ListClustersInput{})
@@ -96,7 +97,7 @@ func searchAllClusters(api domain.EcsApi, tags []domain.AWSTag) (map[string][]st
 	return allClusters, nil
 }
 
-func filterECSServicesByTag(api domain.EcsApi, cluster string, tags []domain.AWSTag) ([]string, error) {
+func filterECSServicesByTag(api awsapis.EcsApi, cluster string, tags []domain.AWSTag) ([]string, error) {
 	serviceArns := []string{}
 
 	paginator := api.NewListServicesPaginator(&ecs.ListServicesInput{

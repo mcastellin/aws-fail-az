@@ -7,11 +7,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
-	"github.com/mcastellin/aws-fail-az/domain"
+	"github.com/mcastellin/aws-fail-az/awsapis"
 	"golang.org/x/exp/slices"
 )
 
-func stopTasksInRemovedSubnets(api domain.EcsApi, cluster string, service string, validSubnets []string) error {
+func stopTasksInRemovedSubnets(api awsapis.EcsApi, cluster string, service string, validSubnets []string) error {
 
 	paginator := api.NewListTasksPaginator(&ecs.ListTasksInput{
 		Cluster:     aws.String(cluster),

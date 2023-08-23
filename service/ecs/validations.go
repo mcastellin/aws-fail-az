@@ -7,13 +7,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
-	"github.com/mcastellin/aws-fail-az/domain"
+	"github.com/mcastellin/aws-fail-az/awsapis"
 )
 
 // Verify if it's safe to fail service availability zones
 // In order to avoid compromising already unstable services, this method verifies that
 // the service exists and has currently reached a stable state.
-func serviceStable(api domain.EcsApi, clusterArn string, serviceName string) (bool, error) {
+func serviceStable(api awsapis.EcsApi, clusterArn string, serviceName string) (bool, error) {
 
 	input := &ecs.DescribeServicesInput{
 		Cluster:  aws.String(clusterArn),

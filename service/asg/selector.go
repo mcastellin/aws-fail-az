@@ -6,11 +6,12 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
+	"github.com/mcastellin/aws-fail-az/awsapis"
 	"github.com/mcastellin/aws-fail-az/domain"
 	"github.com/mcastellin/aws-fail-az/service/awsutils"
 )
 
-func RestoreFromState(stateData []byte, provider *domain.AWSProvider) error {
+func RestoreFromState(stateData []byte, provider *awsapis.AWSProvider) error {
 	var state AutoScalingGroupState
 	err := json.Unmarshal(stateData, &state)
 	if err != nil {
@@ -24,7 +25,7 @@ func RestoreFromState(stateData []byte, provider *domain.AWSProvider) error {
 	}.Restore()
 }
 
-func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider) ([]domain.ConsistentStateService, error) {
+func NewFromConfig(selector domain.ServiceSelector, provider *awsapis.AWSProvider) ([]domain.ConsistentStateService, error) {
 
 	if selector.Type != RESOURCE_TYPE {
 		return nil, fmt.Errorf("Unable to create AutoScalingGroup object from selector of type %s.", selector.Type)
@@ -47,7 +48,7 @@ func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider
 		asgNames = []string{attributes["name"]}
 
 	} else if len(selector.Tags) > 0 {
-		api := domain.NewAutoScalingApi(provider)
+		api := awsapis.NewAutoScalingApi(provider)
 		asgNames, err = filterAutoScalingGroupsByTags(api, selector.Tags)
 		if err != nil {
 			return nil, err
@@ -67,7 +68,7 @@ func NewFromConfig(selector domain.ServiceSelector, provider *domain.AWSProvider
 	return objs, nil
 }
 
-func filterAutoScalingGroupsByTags(api domain.AutoScalingApi, tags []domain.AWSTag) ([]string, error) {
+func filterAutoScalingGroupsByTags(api awsapis.AutoScalingApi, tags []domain.AWSTag) ([]string, error) {
 	groupNames := []string{}
 
 	paginator := api.NewDescribeAutoScalingGroupsPaginator(&autoscaling.DescribeAutoScalingGroupsInput{})
