@@ -17,7 +17,7 @@ import (
 )
 
 // The default table name to store resource states
-const fallbackStateTableName string = "aws-fail-az-state"
+const FALLBACK_STATE_TABLE_NAME string = "aws-fail-az-state"
 
 type StateManager interface {
 	Initialize()
@@ -146,8 +146,8 @@ func (m StateManagerImpl) createTable() (*dynamodb.CreateTableOutput, error) {
 func (m *StateManagerImpl) Initialize() {
 	stateTableName := os.Getenv("AWS_FAILAZ_STATE_TABLE")
 	if stateTableName == "" {
-		log.Printf("AWS_FAILAZ_STATE_STABLE variable is not set. Using default %s", fallbackStateTableName)
-		m.TableName = fallbackStateTableName
+		log.Printf("AWS_FAILAZ_STATE_STABLE variable is not set. Using default %s", FALLBACK_STATE_TABLE_NAME)
+		m.TableName = FALLBACK_STATE_TABLE_NAME
 	} else {
 		m.TableName = stateTableName
 	}
