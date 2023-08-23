@@ -19,7 +19,7 @@ install: build
 # Auto-generate AWS api mocks for unit testing
 # IMPORTANT!! Run this target every time you need to modify the `domain` package
 mockgen: ./awsapis/*.go
-	@for file in $$(find awsapis -name '*.go'); do \
+	@for file in $^; do \
 			echo Generating mocks for $$file; \
 			mockgen -source $$file -destination mock_awsapis/$$(basename $$file); \
 		done
