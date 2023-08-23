@@ -1,4 +1,4 @@
-package domain
+package awsapis
 
 import "github.com/aws/aws-sdk-go-v2/aws"
 

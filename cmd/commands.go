@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/mcastellin/aws-fail-az/awsapis"
 	"github.com/mcastellin/aws-fail-az/domain"
 	"github.com/mcastellin/aws-fail-az/service/asg"
 	"github.com/mcastellin/aws-fail-az/service/ecs"
@@ -57,11 +57,10 @@ func FailCommand(namespace string, readFromStdin bool, configFile string) {
 		log.Fatalf("Failed to load AWS configuration: %v", err)
 	}
 
-	provider := domain.NewProviderFromConfig(&cfg)
+	provider := awsapis.NewProviderFromConfig(&cfg)
 
-	dynamodbClient := dynamodb.NewFromConfig(cfg)
-	stateManager := &state.StateManager{
-		Client:    dynamodbClient,
+	stateManager := &state.StateManagerImpl{
+		Api:       awsapis.NewDynamodbApi(&provider),
 		Namespace: namespace,
 	}
 
@@ -125,11 +124,10 @@ func RecoverCommand(namespace string) {
 	if err != nil {
 		log.Fatalf("Failed to load AWS configuration: %v", err)
 	}
-	provider := domain.NewProviderFromConfig(&cfg)
+	provider := awsapis.NewProviderFromConfig(&cfg)
 
-	dynamodbClient := dynamodb.NewFromConfig(cfg)
-	stateManager := &state.StateManager{
-		Client:    dynamodbClient,
+	stateManager := &state.StateManagerImpl{
+		Api:       awsapis.NewDynamodbApi(&provider),
 		Namespace: namespace,
 	}
 

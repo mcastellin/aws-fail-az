@@ -10,7 +10,7 @@ import (
 // validated and stored with StateManager
 type ConsistentStateService interface {
 	Check() (bool, error)
-	Save(*state.StateManager) error
+	Save(state.StateManager) error
 	Fail([]string) error
 	Restore() error
 }
