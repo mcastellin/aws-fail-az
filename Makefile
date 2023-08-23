@@ -6,7 +6,7 @@ clean:
 	go clean -testcache
 
 test:
-	go test ./...
+	go test ./... -v
 
 build: clean
 	go build -ldflags="-X main.BuildVersion=$(BUILD_VERSION)" -o bin/aws-fail-az cmd/*.go
