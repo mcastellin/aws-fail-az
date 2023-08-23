@@ -5,28 +5,39 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/mcastellin/aws-fail-az/awsapis"
 	"github.com/mcastellin/aws-fail-az/mock_awsapis"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
 
-func TableNameInputMatcher(x string) gomock.Matcher { return tableNameInputMatch{x} }
+func TestStateInitializeNewTableWithOsVar(t *testing.T) {
 
-type tableNameInputMatch struct {
-	x string
-}
+	t.Setenv("AWS_FAILAZ_STATE_TABLE", "test-value")
 
-func (m tableNameInputMatch) Matches(x interface{}) bool {
-	if y, ok := x.(*dynamodb.DescribeTableInput); ok {
-		return m.x == *y.TableName
+	ctrl, _ := gomock.WithContext(context.Background(), t)
+	defer ctrl.Finish()
+
+	mockApi := mock_awsapis.NewMockDynamodbApi(ctrl)
+
+	mockApi.EXPECT().DescribeTable(gomock.Any(), tableNameInputMatch{"test-value"}).
+		Times(1).
+		DoAndReturn(func(ctx context.Context, params *dynamodb.DescribeTableInput,
+			f ...func(*dynamodb.Options)) (*dynamodb.DescribeTableOutput, error) {
+			return &dynamodb.DescribeTableOutput{}, nil
+		})
+
+	mockApi.EXPECT().CreateTable(gomock.Any(), gomock.Any()).
+		Times(0)
+
+	mgr := StateManagerImpl{
+		Api: mockApi,
 	}
-	return false
-}
 
-func (m tableNameInputMatch) String() string {
-	return m.x
+	mgr.Initialize()
 }
 
 func TestStateInitializeNewTable(t *testing.T) {
@@ -59,9 +70,46 @@ func TestStateInitializeNewTable(t *testing.T) {
 	mockApi.EXPECT().CreateTable(gomock.Any(), gomock.Any()).
 		Times(1)
 
-	mgr := StateManagerImpl{
-		Api: mockApi,
-	}
+	mgr := StateManagerImpl{Api: mockApi}
 
 	mgr.Initialize()
+}
+
+func TestSaveStateShouldNotOverrideExisting(t *testing.T) {
+
+	ctrl, _ := gomock.WithContext(context.Background(), t)
+	mockApi := mock_awsapis.NewMockDynamodbApi(ctrl)
+
+	mockApi.EXPECT().GetItem(gomock.Any(), gomock.Any()).
+		Times(1).
+		DoAndReturn(func(ctx context.Context, params *dynamodb.GetItemInput,
+			f ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error) {
+
+			item, _ := attributevalue.MarshalMap(ResourceState{Key: "dummy"})
+			return &dynamodb.GetItemOutput{Item: item}, nil
+		})
+
+	mgr := StateManagerImpl{Api: mockApi}
+
+	err := mgr.Save("type", "key", []byte("payload"))
+
+	assert.NotNil(t, err)
+}
+
+// Matchers
+func TableNameInputMatcher(x string) gomock.Matcher { return tableNameInputMatch{x} }
+
+type tableNameInputMatch struct {
+	x string
+}
+
+func (m tableNameInputMatch) Matches(x interface{}) bool {
+	if y, ok := x.(*dynamodb.DescribeTableInput); ok {
+		return m.x == *y.TableName
+	}
+	return false
+}
+
+func (m tableNameInputMatch) String() string {
+	return m.x
 }
