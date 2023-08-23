@@ -30,9 +30,6 @@ func TestStateInitializeNewTableWithOsVar(t *testing.T) {
 			return &dynamodb.DescribeTableOutput{}, nil
 		})
 
-	mockApi.EXPECT().CreateTable(gomock.Any(), gomock.Any()).
-		Times(0)
-
 	mgr := StateManagerImpl{
 		Api: mockApi,
 	}
@@ -75,7 +72,7 @@ func TestStateInitializeNewTable(t *testing.T) {
 	mgr.Initialize()
 }
 
-func TestSaveStateShouldNotOverrideExisting(t *testing.T) {
+func TestSaveStateShouldNotOverrideExistingKeys(t *testing.T) {
 
 	ctrl, _ := gomock.WithContext(context.Background(), t)
 	mockApi := mock_awsapis.NewMockDynamodbApi(ctrl)
