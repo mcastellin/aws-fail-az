@@ -21,6 +21,12 @@ type FaultConfiguration struct {
 	Services []ServiceSelector `json:"services"`
 }
 
+// AWS Tag
+type AWSTag struct {
+	Name  string `json:"Name"`
+	Value string `json:"Value"`
+}
+
 // AWS ServiceSelector
 type ServiceSelector struct {
 	Type   string   `json:"type"`
@@ -28,22 +34,13 @@ type ServiceSelector struct {
 	Tags   []AWSTag `json:"tags"`
 }
 
-// AWS Tag
-type AWSTag struct {
-	Name  string `json:"Name"`
-	Value string `json:"Value"`
-}
-
 // Validates all required fields for service selector have been provided
-func ValidateServiceSelector(selector ServiceSelector) error {
-
-	if selector.Filter != "" && len(selector.Tags) > 0 {
+func (s ServiceSelector) Validate() error {
+	if s.Filter != "" && len(s.Tags) > 0 {
 		return fmt.Errorf("Validation failed: Both 'filter' and 'tags' selectors specified. Only one allowed.")
 	}
-
-	if selector.Filter == "" && len(selector.Tags) == 0 {
+	if s.Filter == "" && len(s.Tags) == 0 {
 		return fmt.Errorf("Validation failed: One of 'filter' and 'tags' selectors must be specified.")
 	}
-
 	return nil
 }

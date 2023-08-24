@@ -34,7 +34,7 @@ func NewFromConfig(selector domain.ServiceSelector, provider *awsapis.AWSProvide
 	var asgNames []string
 	var err error
 
-	err = domain.ValidateServiceSelector(selector)
+	err = selector.Validate()
 	if err != nil {
 		return nil, err
 	}

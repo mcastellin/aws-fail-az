@@ -35,7 +35,7 @@ func NewFromConfig(selector domain.ServiceSelector, provider *awsapis.AWSProvide
 	objs := []domain.ConsistentStateService{}
 	var err error
 
-	err = domain.ValidateServiceSelector(selector)
+	err = selector.Validate()
 	if err != nil {
 		return nil, err
 	}

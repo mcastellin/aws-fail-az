@@ -17,7 +17,7 @@ import (
 )
 
 // The default table name to store resource states
-const FALLBACK_STATE_TABLE_NAME string = "aws-fail-az-state"
+const FALLBACK_STATE_TABLE_NAME string = "aws-fail-az-state-table"
 
 type StateManager interface {
 	Initialize()
@@ -54,99 +54,13 @@ type StateManagerImpl struct {
 	Namespace string
 }
 
-// Check if the state table already exists for the current AWS Account/Region
-// Returns: true if the table exists, false otherwise
-func (m StateManagerImpl) tableExists() (bool, error) {
-	input := &dynamodb.DescribeTableInput{
-		TableName: aws.String(m.TableName),
-	}
-
-	_, err := m.Api.DescribeTable(context.TODO(), input)
-	if err != nil {
-		if t := new(types.ResourceNotFoundException); errors.As(err, &t) {
-			return false, nil // Table does not exists
-		}
-		return false, err // Other error occurred
-	}
-
-	return true, nil // Table exists
-}
-
-// Creates the resource state table in Dynamodb for the current AWS Account/Region
-// and wait for table creationg before returning
-func (m StateManagerImpl) createTable() (*dynamodb.CreateTableOutput, error) {
-	input := &dynamodb.CreateTableInput{
-		TableName: aws.String(m.TableName),
-		KeySchema: []types.KeySchemaElement{
-			{
-				AttributeName: aws.String("namespace"),
-				KeyType:       types.KeyTypeHash,
-			}, {
-				AttributeName: aws.String("key"),
-				KeyType:       types.KeyTypeRange,
-			},
-		},
-		AttributeDefinitions: []types.AttributeDefinition{
-			{
-				AttributeName: aws.String("namespace"),
-				AttributeType: types.ScalarAttributeTypeS,
-			}, {
-				AttributeName: aws.String("key"),
-				AttributeType: types.ScalarAttributeTypeS,
-			}, {
-				AttributeName: aws.String("createdTime"),
-				AttributeType: types.ScalarAttributeTypeN,
-			},
-		},
-		LocalSecondaryIndexes: []types.LocalSecondaryIndex{
-			{
-				IndexName: aws.String("LSINamespace"),
-				KeySchema: []types.KeySchemaElement{
-					{
-						AttributeName: aws.String("namespace"),
-						KeyType:       types.KeyTypeHash,
-					}, {
-						AttributeName: aws.String("createdTime"),
-						KeyType:       types.KeyTypeRange,
-					},
-				},
-				Projection: &types.Projection{
-					ProjectionType: types.ProjectionTypeAll,
-				},
-			},
-		},
-		ProvisionedThroughput: &types.ProvisionedThroughput{
-			ReadCapacityUnits:  aws.Int64(1),
-			WriteCapacityUnits: aws.Int64(1),
-		},
-	}
-
-	createOutput, err := m.Api.CreateTable(context.TODO(), input)
-	if err != nil {
-		log.Fatalf("Failed to create Dynamodb Table to store the current resource state, %v", err)
-	}
-
-	log.Printf("Wait for table exists: %s", m.TableName)
-	waiter := m.Api.NewTableExistsWaiter()
-	err = waiter.Wait(
-		context.TODO(),
-		&dynamodb.DescribeTableInput{TableName: aws.String(m.TableName)},
-		5*time.Minute,
-	)
-	if err != nil {
-		log.Fatalf("Wait for table exists failed. It's not safe to continue this operation. %v", err)
-	}
-
-	return createOutput, nil
-}
-
 // Initialize the state manager.
 // This only needs to be called once at the beginning of the program to create the
 // state table in Dynamodb. Further calls will have no effect.
 func (m *StateManagerImpl) Initialize() {
-	stateTableName := os.Getenv("AWS_FAILAZ_STATE_TABLE")
+	stateTableName := os.Getenv("AWS_FAIL_AZ_STATE_TABLE")
 	if stateTableName == "" {
-		log.Printf("AWS_FAILAZ_STATE_STABLE variable is not set. Using default %s", FALLBACK_STATE_TABLE_NAME)
+		log.Printf("AWS_FAIL_AZ_STATE_TABLE variable is not set. Using default %s", FALLBACK_STATE_TABLE_NAME)
 		m.TableName = FALLBACK_STATE_TABLE_NAME
 	} else {
 		m.TableName = stateTableName
@@ -259,4 +173,90 @@ func (m StateManagerImpl) RemoveState(stateObj ResourceState) error {
 	}
 
 	return nil
+}
+
+// Check if the state table already exists for the current AWS Account/Region
+// Returns: true if the table exists, false otherwise
+func (m StateManagerImpl) tableExists() (bool, error) {
+	input := &dynamodb.DescribeTableInput{
+		TableName: aws.String(m.TableName),
+	}
+
+	_, err := m.Api.DescribeTable(context.TODO(), input)
+	if err != nil {
+		var t *types.ResourceNotFoundException
+		if errors.As(err, &t) {
+			return false, nil // Table does not exists
+		}
+		return false, err // Other error occurred
+	}
+	return true, nil // Table exists
+}
+
+// Creates the resource state table in Dynamodb for the current AWS Account/Region
+// and wait for table creationg before returning
+func (m StateManagerImpl) createTable() (*dynamodb.CreateTableOutput, error) {
+	input := &dynamodb.CreateTableInput{
+		TableName: aws.String(m.TableName),
+		KeySchema: []types.KeySchemaElement{
+			{
+				AttributeName: aws.String("namespace"),
+				KeyType:       types.KeyTypeHash,
+			}, {
+				AttributeName: aws.String("key"),
+				KeyType:       types.KeyTypeRange,
+			},
+		},
+		AttributeDefinitions: []types.AttributeDefinition{
+			{
+				AttributeName: aws.String("namespace"),
+				AttributeType: types.ScalarAttributeTypeS,
+			}, {
+				AttributeName: aws.String("key"),
+				AttributeType: types.ScalarAttributeTypeS,
+			}, {
+				AttributeName: aws.String("createdTime"),
+				AttributeType: types.ScalarAttributeTypeN,
+			},
+		},
+		LocalSecondaryIndexes: []types.LocalSecondaryIndex{
+			{
+				IndexName: aws.String("LSINamespace"),
+				KeySchema: []types.KeySchemaElement{
+					{
+						AttributeName: aws.String("namespace"),
+						KeyType:       types.KeyTypeHash,
+					}, {
+						AttributeName: aws.String("createdTime"),
+						KeyType:       types.KeyTypeRange,
+					},
+				},
+				Projection: &types.Projection{
+					ProjectionType: types.ProjectionTypeAll,
+				},
+			},
+		},
+		ProvisionedThroughput: &types.ProvisionedThroughput{
+			ReadCapacityUnits:  aws.Int64(1),
+			WriteCapacityUnits: aws.Int64(1),
+		},
+	}
+
+	createOutput, err := m.Api.CreateTable(context.TODO(), input)
+	if err != nil {
+		log.Fatalf("Failed to create Dynamodb Table to store the current resource state, %v", err)
+	}
+
+	log.Printf("Wait for table exists: %s", m.TableName)
+	waiter := m.Api.NewTableExistsWaiter()
+	err = waiter.Wait(
+		context.TODO(),
+		&dynamodb.DescribeTableInput{TableName: aws.String(m.TableName)},
+		5*time.Minute,
+	)
+	if err != nil {
+		log.Fatalf("Wait for table exists failed. It's not safe to continue this operation. %v", err)
+	}
+
+	return createOutput, nil
 }
