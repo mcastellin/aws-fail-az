@@ -22,8 +22,36 @@ const FALLBACK_STATE_TABLE_NAME string = "aws-fail-az-state-table"
 type StateManager interface {
 	Initialize()
 	Save(resourceType string, resourceKey string, state []byte) error
-	ReadStates() ([]ResourceState, error)
+	GetState(resourceType string, resourceKey string) (*ResourceState, error)
+	ReadStates(params *QueryStatesInput) ([]ResourceState, error)
 	RemoveState(stateObj ResourceState) error
+}
+
+// Query states input struct
+type QueryStatesInput struct {
+	ResourceType string
+	ResourceKey  string
+}
+
+// appends filter conditions to expression builder for building state query
+func (q QueryStatesInput) filterExpression(builder expression.Builder) expression.Builder {
+	exprList := []expression.ConditionBuilder{}
+	if q.ResourceKey != "" {
+		nameExpr := expression.Name("resourceKey").Equal(expression.Value(q.ResourceKey))
+		exprList = append(exprList, nameExpr)
+	}
+	if q.ResourceType != "" {
+		nameExpr := expression.Name("resourceType").Equal(expression.Value(q.ResourceType))
+		exprList = append(exprList, nameExpr)
+	}
+
+	if len(exprList) > 1 {
+		builder = builder.WithFilter(expression.And(exprList[0], exprList[1]))
+	} else if len(exprList) > 0 {
+		builder = builder.WithFilter(exprList[0])
+	}
+
+	return builder
 }
 
 type ResourceState struct {
@@ -85,8 +113,7 @@ func (m *StateManagerImpl) Initialize() {
 }
 
 func (m StateManagerImpl) Save(resourceType string, resourceKey string, state []byte) error {
-
-	key := fmt.Sprintf("/%s/%s/%s", m.Namespace, resourceType, resourceKey)
+	key := m.fullKey(resourceType, resourceKey)
 	stateObj := ResourceState{
 		Namespace:    m.Namespace,
 		Key:          key,
@@ -124,10 +151,41 @@ func (m StateManagerImpl) Save(resourceType string, resourceKey string, state []
 	return nil
 }
 
-func (m StateManagerImpl) ReadStates() ([]ResourceState, error) {
+func (m StateManagerImpl) GetState(resourceType string, resourceKey string) (*ResourceState, error) {
+	key := m.fullKey(resourceType, resourceKey)
+	stateObj := ResourceState{
+		Namespace:    m.Namespace,
+		Key:          key,
+		ResourceKey:  resourceKey,
+		ResourceType: resourceType,
+	}
 
+	getItemInput := &dynamodb.GetItemInput{
+		TableName: aws.String(m.TableName),
+		Key:       stateObj.GetKey(),
+	}
+	response, err := m.Api.GetItem(context.TODO(), getItemInput)
+	if err != nil {
+		return nil, err
+	}
+	if len(response.Item) == 0 {
+		return nil, fmt.Errorf("Unknown state key %s", key)
+	}
+
+	var out ResourceState
+	err = attributevalue.UnmarshalMap(response.Item, &out)
+	if err != nil {
+		return nil, fmt.Errorf("Error unmarshalling resource state.")
+	}
+	return &out, nil
+}
+
+func (m StateManagerImpl) ReadStates(params *QueryStatesInput) ([]ResourceState, error) {
 	keyExpr := expression.Key("namespace").Equal(expression.Value(m.Namespace))
-	expr, err := expression.NewBuilder().WithKeyCondition(keyExpr).Build()
+	builder := expression.NewBuilder().WithKeyCondition(keyExpr)
+	builder = params.filterExpression(builder)
+
+	expr, err := builder.Build()
 	if err != nil {
 		log.Println("Unable to build query expression to fetch resource states")
 		return []ResourceState{}, err
@@ -139,9 +197,11 @@ func (m StateManagerImpl) ReadStates() ([]ResourceState, error) {
 		TableName:                 aws.String(m.TableName),
 		IndexName:                 aws.String("LSINamespace"),
 		KeyConditionExpression:    expr.KeyCondition(),
+		FilterExpression:          expr.Filter(),
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
 	}
+
 	paginator := m.Api.NewQueryPaginator(queryInput)
 	for paginator.HasMorePages() {
 		queryOutput, err := paginator.NextPage(context.TODO())
@@ -259,4 +319,8 @@ func (m StateManagerImpl) createTable() (*dynamodb.CreateTableOutput, error) {
 	}
 
 	return createOutput, nil
+}
+
+func (m StateManagerImpl) fullKey(resourceType string, resourceKey string) string {
+	return fmt.Sprintf("/%s/%s/%s", m.Namespace, resourceType, resourceKey)
 }
