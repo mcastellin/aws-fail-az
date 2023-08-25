@@ -38,8 +38,6 @@ func SaveState(namespace string,
 		log.Fatal("No data was provided to store in state. Exiting.")
 	}
 
-	fmt.Println(namespace, resourceType, resourceKey, readFromStdin, string(statePayload))
-
 	stateManager := getManager(namespace)
 	stateManager.Initialize()
 
