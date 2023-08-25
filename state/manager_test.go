@@ -16,7 +16,7 @@ import (
 
 func TestStateInitializeNewTableWithOsVar(t *testing.T) {
 
-	t.Setenv("AWS_FAILAZ_STATE_TABLE", "test-value")
+	t.Setenv("AWS_FAIL_AZ_STATE_TABLE", "test-value")
 
 	ctrl, _ := gomock.WithContext(context.Background(), t)
 	defer ctrl.Finish()

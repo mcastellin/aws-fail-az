@@ -9,8 +9,11 @@ import (
 
 var BuildVersion string = ""
 var (
-	namespace string
-	stdin     bool
+	stdin             bool
+	namespace         string
+	resourceType      string
+	resourceKey       string
+	resourceStateData string
 )
 
 var rootCmd = &cobra.Command{
@@ -19,7 +22,7 @@ var rootCmd = &cobra.Command{
 }
 
 var failCmd = &cobra.Command{
-	Use:   "fail",
+	Use:   "fail [CONFIG_FILE]",
 	Short: "Start AZ failure injection based on the provided configuration from stdin",
 	Run: func(cmd *cobra.Command, args []string) {
 		if !stdin && len(args) != 1 {
@@ -43,6 +46,33 @@ var recoverCmd = &cobra.Command{
 	},
 }
 
+var stateSaveCmd = &cobra.Command{
+	Use:   "state-save",
+	Short: "Store a state object in Dynamodb",
+	Run: func(cmd *cobra.Command, args []string) {
+		if stdin && len(resourceStateData) > 0 {
+			log.Fatalf("State files are not supported when reading from stdin. Found %d.", len(args))
+		}
+		SaveState(namespace, resourceType, resourceKey, stdin, resourceStateData)
+	},
+}
+
+var stateReadCmd = &cobra.Command{
+	Use:   "state-read",
+	Short: "Read a state object from Dynamodb",
+	Run: func(cmd *cobra.Command, args []string) {
+		ReadStates(namespace, resourceType, resourceKey)
+	},
+}
+
+var stateDeleteCmd = &cobra.Command{
+	Use:   "state-delete",
+	Short: "Delete a state object from Dynamodb",
+	Run: func(cmd *cobra.Command, args []string) {
+		DeleteState(namespace, resourceType, resourceKey)
+	},
+}
+
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the command version",
@@ -58,11 +88,32 @@ func main() {
 
 	recoverCmd.Flags().StringVar(&namespace, "ns", "", "The namespace assigned to this operation. Used to uniquely identify resources state for recovery.")
 
+	stateSaveCmd.Flags().StringVar(&namespace, "ns", "", "The namespace assigned to this operation. Used to uniquely identify resources state for recovery.")
+	stateSaveCmd.Flags().StringVar(&resourceType, "type", "", "The type of resource state to store")
+	stateSaveCmd.Flags().StringVar(&resourceKey, "key", "", "A unique key to identify this resource")
+	stateSaveCmd.Flags().StringVar(&resourceStateData, "data", "", "The payload for the resource state as a string value")
+	stateSaveCmd.Flags().BoolVar(&stdin, "stdin", false, "Read resource state from stdin.")
+	stateSaveCmd.MarkFlagRequired("type")
+	stateSaveCmd.MarkFlagRequired("key")
+
+	stateReadCmd.Flags().StringVar(&namespace, "ns", "", "The namespace assigned to this operation. Used to uniquely identify resources state for recovery.")
+	stateReadCmd.Flags().StringVar(&resourceType, "type", "", "Filter states by resource type")
+	stateReadCmd.Flags().StringVar(&resourceKey, "key", "", "Filter states by resource key")
+
+	stateDeleteCmd.Flags().StringVar(&namespace, "ns", "", "The namespace assigned to this operation. Used to uniquely identify resources state for recovery.")
+	stateDeleteCmd.Flags().StringVar(&resourceType, "type", "", "Filter states by resource type")
+	stateDeleteCmd.Flags().StringVar(&resourceKey, "key", "", "Filter states by resource key")
+	stateDeleteCmd.MarkFlagRequired("type")
+	stateDeleteCmd.MarkFlagRequired("key")
+
 	rootCmd.AddCommand(failCmd)
 	rootCmd.AddCommand(recoverCmd)
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(stateSaveCmd)
+	rootCmd.AddCommand(stateReadCmd)
+	rootCmd.AddCommand(stateDeleteCmd)
 
 	if err := rootCmd.Execute(); err != nil {
-		log.Panic(err)
+		log.Fatal(err)
 	}
 }
