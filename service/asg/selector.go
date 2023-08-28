@@ -19,7 +19,7 @@ func RestoreFromState(stateData []byte, provider *awsapis.AWSProvider) error {
 	}
 
 	return AutoScalingGroup{
-		Provider:             provider,
+		Provider:             *provider,
 		AutoScalingGroupName: state.AutoScalingGroupName,
 		stateSubnets:         state.Subnets,
 	}.Restore()
@@ -48,7 +48,7 @@ func NewFromConfig(selector domain.ServiceSelector, provider *awsapis.AWSProvide
 		asgNames = []string{attributes["name"]}
 
 	} else if len(selector.Tags) > 0 {
-		api := awsapis.NewAutoScalingApi(provider)
+		api := (*provider).NewAutoScalingApi()
 		asgNames, err = filterAutoScalingGroupsByTags(api, selector.Tags)
 		if err != nil {
 			return nil, err
@@ -60,7 +60,7 @@ func NewFromConfig(selector domain.ServiceSelector, provider *awsapis.AWSProvide
 	for _, name := range asgNames {
 		objs = append(objs,
 			AutoScalingGroup{
-				Provider:             provider,
+				Provider:             *provider,
 				AutoScalingGroupName: name,
 			})
 	}

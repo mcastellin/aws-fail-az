@@ -54,7 +54,7 @@ func NewFromConfig(selector domain.ServiceSelector, provider *awsapis.AWSProvide
 			},
 		}
 	} else if len(selector.Tags) > 0 {
-		api := awsapis.NewEcsApi(provider)
+		api := (*provider).NewEcsApi()
 		clusters, err := searchAllClusters(api, selector.Tags)
 		if err != nil {
 			return nil, err

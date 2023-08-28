@@ -18,7 +18,7 @@ func getManager(namespace string) state.StateManager {
 	provider := awsapis.NewProviderFromConfig(&cfg)
 
 	return &state.StateManagerImpl{
-		Api:       awsapis.NewDynamodbApi(&provider),
+		Api:       provider.NewDynamodbApi(),
 		Namespace: namespace,
 	}
 }

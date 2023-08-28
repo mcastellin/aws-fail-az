@@ -36,7 +36,7 @@ func (svc ECSService) Check() (bool, error) {
 	log.Printf("%s cluster=%s,name=%s: checking resource state before failure simulation",
 		RESOURCE_TYPE, svc.ClusterArn, svc.ServiceName)
 
-	api := awsapis.NewEcsApi(svc.Provider)
+	api := (*svc.Provider).NewEcsApi()
 
 	result, err := serviceStable(api, svc.ClusterArn, svc.ServiceName)
 	if err != nil {
@@ -49,7 +49,7 @@ func (svc ECSService) Check() (bool, error) {
 }
 
 func (svc ECSService) Save(stateManager state.StateManager) error {
-	api := awsapis.NewEcsApi(svc.Provider)
+	api := (*svc.Provider).NewEcsApi()
 
 	input := &ecs.DescribeServicesInput{
 		Cluster:  aws.String(svc.ClusterArn),
@@ -86,8 +86,8 @@ func (svc ECSService) Save(stateManager state.StateManager) error {
 }
 
 func (svc ECSService) Fail(azs []string) error {
-	ec2Api := awsapis.NewEc2Api(svc.Provider)
-	ecsApi := awsapis.NewEcsApi(svc.Provider)
+	ec2Api := (*svc.Provider).NewEc2Api()
+	ecsApi := (*svc.Provider).NewEcsApi()
 
 	input := &ecs.DescribeServicesInput{
 		Cluster:  aws.String(svc.ClusterArn),
@@ -142,7 +142,7 @@ func (svc ECSService) Restore() error {
 	log.Printf("%s cluster=%s,name=%s: restoring AZs for ecs-service",
 		RESOURCE_TYPE, svc.ClusterArn, svc.ServiceName)
 
-	api := awsapis.NewEcsApi(svc.Provider)
+	api := (*svc.Provider).NewEcsApi()
 
 	input := &ecs.DescribeServicesInput{
 		Cluster:  aws.String(svc.ClusterArn),

@@ -20,7 +20,7 @@ func RecoverCommand(namespace string) {
 	provider := awsapis.NewProviderFromConfig(&cfg)
 
 	stateManager := &state.StateManagerImpl{
-		Api:       awsapis.NewDynamodbApi(&provider),
+		Api:       provider.NewDynamodbApi(),
 		Namespace: namespace,
 	}
 

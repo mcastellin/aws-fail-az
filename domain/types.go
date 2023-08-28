@@ -6,7 +6,7 @@ import (
 	"github.com/mcastellin/aws-fail-az/state"
 )
 
-// A representation of an AWS service state that can be
+// A representation of an AWS resource state that can be
 // validated and stored with StateManager
 type ConsistentStateService interface {
 	Check() (bool, error)

@@ -19,16 +19,16 @@ import (
 // The resource key to use for storing state of autoscaling groups
 const RESOURCE_TYPE string = "auto-scaling-group"
 
-type AutoScalingGroup struct {
-	Provider             *awsapis.AWSProvider
-	AutoScalingGroupName string
-
-	stateSubnets []string
-}
-
 type AutoScalingGroupState struct {
 	AutoScalingGroupName string   `json:"asgName"`
 	Subnets              []string `json:"subnets"`
+}
+
+type AutoScalingGroup struct {
+	Provider             awsapis.AWSProvider
+	AutoScalingGroupName string
+
+	stateSubnets []string
 }
 
 func (asg AutoScalingGroup) Check() (bool, error) {
@@ -37,7 +37,7 @@ func (asg AutoScalingGroup) Check() (bool, error) {
 	log.Printf("%s name=%s: checking resource state before failure simulation",
 		RESOURCE_TYPE, asg.AutoScalingGroupName)
 
-	api := awsapis.NewAutoScalingApi(asg.Provider)
+	api := asg.Provider.NewAutoScalingApi()
 
 	input := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []string{asg.AutoScalingGroupName},
@@ -66,7 +66,7 @@ func (asg AutoScalingGroup) Check() (bool, error) {
 
 func (asg AutoScalingGroup) Save(stateManager state.StateManager) error {
 
-	api := awsapis.NewAutoScalingApi(asg.Provider)
+	api := asg.Provider.NewAutoScalingApi()
 
 	input := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []string{asg.AutoScalingGroupName},
@@ -100,8 +100,8 @@ func (asg AutoScalingGroup) Save(stateManager state.StateManager) error {
 }
 
 func (asg AutoScalingGroup) Fail(azs []string) error {
-	ec2Api := awsapis.NewEc2Api(asg.Provider)
-	api := awsapis.NewAutoScalingApi(asg.Provider)
+	ec2Api := asg.Provider.NewEc2Api()
+	api := asg.Provider.NewAutoScalingApi()
 
 	input := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []string{asg.AutoScalingGroupName},
@@ -154,13 +154,13 @@ func (asg AutoScalingGroup) Fail(azs []string) error {
 func (asg AutoScalingGroup) Restore() error {
 	log.Printf("%s name=%s: restoring AZs for autoscaling group", RESOURCE_TYPE, asg.AutoScalingGroupName)
 
-	client := autoscaling.NewFromConfig(asg.Provider.GetConnection())
+	api := asg.Provider.NewAutoScalingApi()
 	updateAsgInput := &autoscaling.UpdateAutoScalingGroupInput{
 		AutoScalingGroupName: aws.String(asg.AutoScalingGroupName),
 		VPCZoneIdentifier:    aws.String(strings.Join(asg.stateSubnets, ",")),
 	}
 
-	_, err := client.UpdateAutoScalingGroup(context.TODO(), updateAsgInput)
+	_, err := api.UpdateAutoScalingGroup(context.TODO(), updateAsgInput)
 	if err != nil {
 		return err
 	}
