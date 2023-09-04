@@ -8,7 +8,7 @@ import (
 
 // A representation of an AWS resource state that can be
 // validated and stored with StateManager
-type ConsistentStateService interface {
+type ConsistentStateResource interface {
 	Check() (bool, error)
 	Save(state.StateManager) error
 	Fail([]string) error

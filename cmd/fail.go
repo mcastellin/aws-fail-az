@@ -56,10 +56,10 @@ func FailCommand(namespace string, readFromStdin bool, configFile string) {
 
 	stateManager.Initialize()
 
-	allServices := make([]domain.ConsistentStateService, 0)
+	allServices := make([]domain.ConsistentStateResource, 0)
 
 	for _, svc := range faultConfig.Services {
-		var svcConfigs []domain.ConsistentStateService
+		var svcConfigs []domain.ConsistentStateResource
 		var err error
 
 		switch {
@@ -104,13 +104,13 @@ func FailCommand(namespace string, readFromStdin bool, configFile string) {
 	}
 }
 
-func checkResourceStates(ctx context.Context, resources []domain.ConsistentStateService) error {
+func checkResourceStates(ctx context.Context, resources []domain.ConsistentStateResource) error {
 	checkResults := make(chan bool, len(resources))
 
 	wg := new(sync.WaitGroup)
 	for _, resource := range resources {
 		wg.Add(1)
-		go func(resource domain.ConsistentStateService) {
+		go func(resource domain.ConsistentStateResource) {
 			defer wg.Done()
 			select {
 			case <-ctx.Done():
