@@ -45,11 +45,9 @@ func (svc ECSService) Check() (bool, error) {
 	result, err := serviceStable(api, svc.ClusterArn, svc.ServiceName)
 	if err != nil {
 		return false, nil
-	} else {
-		isValid = isValid && result
 	}
 
-	return isValid, nil
+	return isValid && result, nil
 }
 
 func (svc ECSService) Save(stateManager state.StateManager) error {
@@ -113,7 +111,7 @@ func (svc ECSService) Fail(azs []string) error {
 	}
 
 	if len(newSubnets) == 0 {
-		return fmt.Errorf("AZ failure for service %s would remove all available subnets. Service failure will now stop.", svc.ServiceName)
+		return fmt.Errorf("AZ failure for service %s would remove all available subnets. Service failure will now stop", svc.ServiceName)
 	}
 
 	log.Printf("%s cluster=%s,name=%s: failing AZs %s for ecs-service",
