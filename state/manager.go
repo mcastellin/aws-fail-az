@@ -19,15 +19,30 @@ import (
 // The default table name to store resource states
 const FALLBACK_STATE_TABLE_NAME string = "aws-fail-az-state-table"
 
+// StateManager provides the API to manage resource states in Dynamodb
 type StateManager interface {
+
+	// Initialize the state manager by establishing the connection with Dynamodb
+	// This function only needs to be called once for every object that implements
+	// StateManager. Further calls will have no effect
 	Initialize()
+
+	// Save a new state in storage
 	Save(resourceType string, resourceKey string, state []byte) error
+
+	// Reads a single state object from storage
+	// Returns a pointer to a ResourceState object or an error if the state is not found
 	GetState(resourceType string, resourceKey string) (*ResourceState, error)
-	ReadStates(params *QueryStatesInput) ([]ResourceState, error)
+
+	// QueryStates finds state objects in storage by resourceType or resourceKey
+	// Returns a list of ResourceState objects found in storage
+	QueryStates(params *QueryStatesInput) ([]ResourceState, error)
+
+	// Removes a single state object from storage
 	RemoveState(stateObj ResourceState) error
 }
 
-// Query states input struct
+// Represents the input of a QueryStates operation
 type QueryStatesInput struct {
 	ResourceType string
 	ResourceKey  string
@@ -54,6 +69,7 @@ func (q QueryStatesInput) filterExpression(builder expression.Builder) expressio
 	return builder
 }
 
+// A structure to represent an AWS resource's state
 type ResourceState struct {
 	Namespace    string `dynamodbav:"namespace"`
 	Key          string `dynamodbav:"key"`
@@ -63,6 +79,7 @@ type ResourceState struct {
 	State        []byte `dynamodbav:"state"`
 }
 
+// GetKey returns a representation of the Dynamodb Table key of the main index
 func (state ResourceState) GetKey() map[string]types.AttributeValue {
 	namespace, err := attributevalue.Marshal(state.Namespace)
 	if err != nil {
@@ -75,16 +92,13 @@ func (state ResourceState) GetKey() map[string]types.AttributeValue {
 	return map[string]types.AttributeValue{"namespace": namespace, "key": key}
 }
 
-// A State Manager object to interact with resource state
+// A State Manager object to interact with resource state storage
 type StateManagerImpl struct {
 	Api       awsapis.DynamodbApi
 	TableName string
 	Namespace string
 }
 
-// Initialize the state manager.
-// This only needs to be called once at the beginning of the program to create the
-// state table in Dynamodb. Further calls will have no effect.
 func (m *StateManagerImpl) Initialize() {
 	stateTableName := os.Getenv("AWS_FAIL_AZ_STATE_TABLE")
 	if stateTableName == "" {
@@ -113,7 +127,7 @@ func (m *StateManagerImpl) Initialize() {
 }
 
 func (m StateManagerImpl) Save(resourceType string, resourceKey string, state []byte) error {
-	key := m.fullKey(resourceType, resourceKey)
+	key := m.formatStateKey(resourceType, resourceKey)
 	stateObj := ResourceState{
 		Namespace:    m.Namespace,
 		Key:          key,
@@ -152,7 +166,7 @@ func (m StateManagerImpl) Save(resourceType string, resourceKey string, state []
 }
 
 func (m StateManagerImpl) GetState(resourceType string, resourceKey string) (*ResourceState, error) {
-	key := m.fullKey(resourceType, resourceKey)
+	key := m.formatStateKey(resourceType, resourceKey)
 	stateObj := ResourceState{
 		Namespace:    m.Namespace,
 		Key:          key,
@@ -180,7 +194,7 @@ func (m StateManagerImpl) GetState(resourceType string, resourceKey string) (*Re
 	return &out, nil
 }
 
-func (m StateManagerImpl) ReadStates(params *QueryStatesInput) ([]ResourceState, error) {
+func (m StateManagerImpl) QueryStates(params *QueryStatesInput) ([]ResourceState, error) {
 	keyExpr := expression.Key("namespace").Equal(expression.Value(m.Namespace))
 	builder := expression.NewBuilder().WithKeyCondition(keyExpr)
 	builder = params.filterExpression(builder)
@@ -321,6 +335,7 @@ func (m StateManagerImpl) createTable() (*dynamodb.CreateTableOutput, error) {
 	return createOutput, nil
 }
 
-func (m StateManagerImpl) fullKey(resourceType string, resourceKey string) string {
+// Formats the full key attribute of the resource state object
+func (m StateManagerImpl) formatStateKey(resourceType string, resourceKey string) string {
 	return fmt.Sprintf("/%s/%s/%s", m.Namespace, resourceType, resourceKey)
 }

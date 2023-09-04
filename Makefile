@@ -1,4 +1,4 @@
-.PHONY: clean test build install mockgen
+.PHONY: clean test lint build install mockgen
 
 BUILD_VERSION=dev-snapshot
 
@@ -7,6 +7,9 @@ clean:
 
 test:
 	@go test ./... -v
+
+lint:
+	@golangci-lint run
 
 build: clean
 	go build -ldflags="-X main.BuildVersion=$(BUILD_VERSION)" -o bin/aws-fail-az cmd/*.go

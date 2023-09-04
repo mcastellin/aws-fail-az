@@ -26,7 +26,7 @@ func RecoverCommand(namespace string) {
 
 	stateManager.Initialize()
 
-	states, err := stateManager.ReadStates(&state.QueryStatesInput{})
+	states, err := stateManager.QueryStates(&state.QueryStatesInput{})
 	if err != nil {
 		log.Panic(err)
 	}
@@ -36,7 +36,7 @@ func RecoverCommand(namespace string) {
 		} else if s.ResourceType == asg.RESOURCE_TYPE {
 			err = asg.RestoreFromState(s.State, &provider)
 		} else {
-			err = fmt.Errorf("Unknown resource of type %s found in state with key %s. Object will be ignored.\n",
+			err = fmt.Errorf("unknown resource of type %s found in state with key %s. Object will be ignored",
 				s.ResourceType,
 				s.Key,
 			)
@@ -45,7 +45,10 @@ func RecoverCommand(namespace string) {
 		if err != nil {
 			log.Println(err)
 		} else {
-			stateManager.RemoveState(s)
+			err = stateManager.RemoveState(s)
+			if err != nil {
+				log.Printf("Error removing state from storage: %v", err)
+			}
 		}
 	}
 }

@@ -21,6 +21,7 @@ FROM debian:12
 ARG VERSION=0.0.4
 RUN apt-get update \
     && apt-get install -qqy curl \
+    && rm -rf /var/lib/apt/lists \
     && curl -sSL -o /opt/aws-fail-az-$VERSION.tar.gz \
         https://github.com/mcastellin/aws-fail-az/releases/download/$VERSION/aws-fail-az_Linux_x86_64.tar.gz \
     && tar xf /opt/aws-fail-az-$VERSION.tar.gz -C /opt \

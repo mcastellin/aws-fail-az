@@ -136,7 +136,7 @@ func checkResourceStates(ctx context.Context, resources []domain.ConsistentState
 		}
 	}
 	if validCount < len(resources) {
-		return fmt.Errorf("ERROR: One or more resources failed state checks.")
+		return fmt.Errorf("ERROR: One or more resources failed state checks")
 	}
 	return nil
 }

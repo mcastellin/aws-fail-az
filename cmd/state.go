@@ -55,7 +55,7 @@ func ReadStates(namespace string, resourceType string, resourceKey string) {
 	stateManager := getManager(namespace)
 	stateManager.Initialize()
 
-	states, err := stateManager.ReadStates(&state.QueryStatesInput{
+	states, err := stateManager.QueryStates(&state.QueryStatesInput{
 		ResourceType: resourceType,
 		ResourceKey:  resourceKey,
 	})
@@ -76,11 +76,11 @@ func ReadStates(namespace string, resourceType string, resourceKey string) {
 	}
 
 	if len(states) > 0 {
-		stateJson, err := json.Marshal(stateData)
+		stateJSON, err := json.Marshal(stateData)
 		if err != nil {
 			fmt.Println("Error unmarshalling state object. Exiting.")
 		}
-		fmt.Println(string(stateJson))
+		fmt.Println(string(stateJSON))
 	} else {
 		fmt.Println("[]")
 	}
@@ -99,7 +99,6 @@ func DeleteState(namespace string, resourceType string, resourceKey string) {
 	err = stateManager.RemoveState(*result)
 	if err != nil {
 		log.Fatalf("Error removing state object with key %s", result.Key)
-	} else {
-		log.Printf("State with key %s removed successfully", result.Key)
 	}
+	log.Printf("State with key %s removed successfully", result.Key)
 }

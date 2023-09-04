@@ -7,7 +7,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var BuildVersion string = ""
+// BuildVersion for this application
+var BuildVersion string
 var (
 	stdin             bool
 	namespace         string

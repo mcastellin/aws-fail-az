@@ -116,6 +116,9 @@ func (asg AutoScalingGroup) Fail(azs []string) error {
 	subnets := strings.Split(*asgObj.VPCZoneIdentifier, ",")
 
 	newSubnets, err := awsutils.FilterSubnetsNotInAzs(ec2Api, subnets, azs)
+	if err != nil {
+		return err
+	}
 
 	log.Printf("%s name=%s: failing AZs %s for autoscaling group",
 		RESOURCE_TYPE, asg.AutoScalingGroupName, azs)
