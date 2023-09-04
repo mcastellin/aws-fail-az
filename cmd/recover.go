@@ -33,9 +33,9 @@ func RecoverCommand(namespace string) {
 	for _, s := range states {
 		switch s.ResourceType {
 		case ecs.RESOURCE_TYPE:
-			err = ecs.RestoreFromState(s.State, &provider)
+			err = ecs.RestoreFromState(s.State, provider)
 		case asg.RESOURCE_TYPE:
-			err = asg.RestoreFromState(s.State, &provider)
+			err = asg.RestoreFromState(s.State, provider)
 		default:
 			err = fmt.Errorf("unknown resource of type %s found in state with key %s. Object will be ignored",
 				s.ResourceType,

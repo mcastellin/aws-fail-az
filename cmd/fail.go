@@ -64,9 +64,9 @@ func FailCommand(namespace string, readFromStdin bool, configFile string) {
 
 		switch {
 		case target.Type == ecs.RESOURCE_TYPE:
-			targetConfigs, err = ecs.NewFromConfig(target, &provider)
+			targetConfigs, err = ecs.NewFromConfig(target, provider)
 		case target.Type == asg.RESOURCE_TYPE:
-			targetConfigs, err = asg.NewFromConfig(target, &provider)
+			targetConfigs, err = asg.NewFromConfig(target, provider)
 		default:
 			err = fmt.Errorf("Could not recognize resource type %s", target.Type)
 		}
