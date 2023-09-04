@@ -2,7 +2,7 @@
   "azs": [
     "us-east-1a"
   ],
-  "services": [
+  "targets": [
     {
       "type": "ecs-service",
       "tags": [

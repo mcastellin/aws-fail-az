@@ -31,11 +31,12 @@ func RecoverCommand(namespace string) {
 		log.Panic(err)
 	}
 	for _, s := range states {
-		if s.ResourceType == ecs.RESOURCE_TYPE {
+		switch s.ResourceType {
+		case ecs.RESOURCE_TYPE:
 			err = ecs.RestoreFromState(s.State, &provider)
-		} else if s.ResourceType == asg.RESOURCE_TYPE {
+		case asg.RESOURCE_TYPE:
 			err = asg.RestoreFromState(s.State, &provider)
-		} else {
+		default:
 			err = fmt.Errorf("unknown resource of type %s found in state with key %s. Object will be ignored",
 				s.ResourceType,
 				s.Key,

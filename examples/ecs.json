@@ -2,7 +2,7 @@
   "azs": [
     "us-east-1b"
   ],
-  "services": [
+  "targets": [
     {
       "type": "ecs-service",
       "filter": "cluster=tutorial-sample-app-cluster;service=sample-app-back"

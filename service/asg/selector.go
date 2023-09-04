@@ -25,7 +25,7 @@ func RestoreFromState(stateData []byte, provider *awsapis.AWSProvider) error {
 	}.Restore()
 }
 
-func NewFromConfig(selector domain.ServiceSelector, provider *awsapis.AWSProvider) ([]domain.ConsistentStateResource, error) {
+func NewFromConfig(selector domain.TargetSelector, provider *awsapis.AWSProvider) ([]domain.ConsistentStateResource, error) {
 
 	if selector.Type != RESOURCE_TYPE {
 		return nil, fmt.Errorf("Unable to create AutoScalingGroup object from selector of type %s.", selector.Type)
