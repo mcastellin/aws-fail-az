@@ -17,9 +17,10 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-// The resource type key to use for storing state of ECS services
+// RESOURCE_TYPE contains the key used to identify ECS resources in storage
 const RESOURCE_TYPE string = "ecs-service"
 
+// A struct to represent an ECS service resource
 type ECSService struct {
 	Provider    awsapis.AWSProvider
 	ClusterArn  string
@@ -28,6 +29,8 @@ type ECSService struct {
 	stateSubnets []string
 }
 
+// A struct to represent the current state of an ECS service before
+// AZ failure is applied
 type ECSServiceState struct {
 	ServiceName string   `json:"service"`
 	ClusterArn  string   `json:"cluster"`
@@ -175,8 +178,9 @@ func (svc ECSService) Restore() error {
 	return nil
 }
 
+// Search and terminate tasks that have an attachment to subnets that have been eliminated from
+// the network configuration
 func stopTasksInRemovedSubnets(api awsapis.EcsApi, cluster string, service string, validSubnets []string) error {
-
 	paginator := api.NewListTasksPaginator(&ecs.ListTasksInput{
 		Cluster:     aws.String(cluster),
 		ServiceName: aws.String(service),

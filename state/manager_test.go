@@ -3,19 +3,16 @@ package state
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/mcastellin/aws-fail-az/awsapis"
 	"github.com/mcastellin/aws-fail-az/mock_awsapis"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
 
 func TestStateInitializeNewTableWithOsVar(t *testing.T) {
-
 	t.Setenv("AWS_FAIL_AZ_STATE_TABLE", "test-value")
 
 	ctrl, _ := gomock.WithContext(context.Background(), t)
@@ -25,10 +22,7 @@ func TestStateInitializeNewTableWithOsVar(t *testing.T) {
 
 	mockApi.EXPECT().DescribeTable(gomock.Any(), tableNameInputMatch{"test-value"}).
 		Times(1).
-		DoAndReturn(func(ctx context.Context, params *dynamodb.DescribeTableInput,
-			f ...func(*dynamodb.Options)) (*dynamodb.DescribeTableOutput, error) {
-			return &dynamodb.DescribeTableOutput{}, nil
-		})
+		Return(&dynamodb.DescribeTableOutput{}, nil)
 
 	mgr := StateManagerImpl{
 		Api: mockApi,
@@ -46,23 +40,12 @@ func TestStateInitializeNewTable(t *testing.T) {
 
 	mockWaiter.EXPECT().Wait(gomock.Any(), tableNameInputMatch{FALLBACK_STATE_TABLE_NAME}, gomock.Any()).
 		Times(1).
-		DoAndReturn(func(ctx context.Context, params *dynamodb.DescribeTableInput,
-			maxWaitDur time.Duration, optFns ...func(*dynamodb.TableExistsWaiterOptions)) error {
-			return nil
-		})
+		Return(nil)
 
-	mockApi.EXPECT().NewTableExistsWaiter().
-		Times(1).
-		DoAndReturn(func() awsapis.DynamodbTableExistsWaiter {
-			return mockWaiter
-		})
+	mockApi.EXPECT().NewTableExistsWaiter().Times(1).Return(mockWaiter)
 	mockApi.EXPECT().DescribeTable(gomock.Any(), gomock.Any()).
 		Times(1).
-		DoAndReturn(func(ctx context.Context, params *dynamodb.DescribeTableInput,
-			f ...func(*dynamodb.Options)) (*dynamodb.DescribeTableOutput, error) {
-			err := &types.ResourceNotFoundException{}
-			return nil, err
-		})
+		Return(nil, &types.ResourceNotFoundException{})
 
 	mockApi.EXPECT().CreateTable(gomock.Any(), gomock.Any()).
 		Times(1)
@@ -73,7 +56,6 @@ func TestStateInitializeNewTable(t *testing.T) {
 }
 
 func TestSaveStateShouldNotOverrideExistingKeys(t *testing.T) {
-
 	ctrl, _ := gomock.WithContext(context.Background(), t)
 	mockApi := mock_awsapis.NewMockDynamodbApi(ctrl)
 

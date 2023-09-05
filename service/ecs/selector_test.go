@@ -20,11 +20,11 @@ func TestFilterServiceByTagsShouldExcludeResults(t *testing.T) {
 	listClustersPager := createListClusterPager(ctrl, [][]string{{"test-cluster"}})
 	listServicesPager := createListServicesPager(ctrl, [][]string{{"test-service"}})
 
-	mockEcsApi := mock_awsapis.NewMockEcsApi(ctrl)
-	mockEcsApi.EXPECT().NewListClustersPaginator(gomock.Any()).Times(1).Return(listClustersPager)
-	mockEcsApi.EXPECT().NewListServicesPaginator(gomock.Any()).Times(1).Return(listServicesPager)
+	mockEcsAPI := mock_awsapis.NewMockEcsApi(ctrl)
+	mockEcsAPI.EXPECT().NewListClustersPaginator(gomock.Any()).Times(1).Return(listClustersPager)
+	mockEcsAPI.EXPECT().NewListServicesPaginator(gomock.Any()).Times(1).Return(listServicesPager)
 
-	mockEcsApi.EXPECT().ListTagsForResource(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).
+	mockEcsAPI.EXPECT().ListTagsForResource(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).
 		DoAndReturn(func(_ context.Context, param *ecs.ListTagsForResourceInput, optFns ...func(*ecs.Options)) (*ecs.ListTagsForResourceOutput, error) {
 			return &ecs.ListTagsForResourceOutput{
 				Tags: []types.Tag{{Key: aws.String("Application"), Value: aws.String("live-app")}},
@@ -32,8 +32,8 @@ func TestFilterServiceByTagsShouldExcludeResults(t *testing.T) {
 		})
 
 	mockProvider := mock_awsapis.NewMockAWSProvider(ctrl)
-	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsApi)
-	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsApi)
+	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsAPI)
+	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsAPI)
 
 	config := domain.TargetSelector{
 		Type: RESOURCE_TYPE,
@@ -54,11 +54,11 @@ func TestFilterServiceByTagsShouldMatch(t *testing.T) {
 	listClustersPager := createListClusterPager(ctrl, [][]string{{"test-cluster"}})
 	listServicesPager := createListServicesPager(ctrl, [][]string{{"test-service"}})
 
-	mockEcsApi := mock_awsapis.NewMockEcsApi(ctrl)
-	mockEcsApi.EXPECT().NewListClustersPaginator(gomock.Any()).Times(1).Return(listClustersPager)
-	mockEcsApi.EXPECT().NewListServicesPaginator(gomock.Any()).Times(1).Return(listServicesPager)
+	mockEcsAPI := mock_awsapis.NewMockEcsApi(ctrl)
+	mockEcsAPI.EXPECT().NewListClustersPaginator(gomock.Any()).Times(1).Return(listClustersPager)
+	mockEcsAPI.EXPECT().NewListServicesPaginator(gomock.Any()).Times(1).Return(listServicesPager)
 
-	mockEcsApi.EXPECT().ListTagsForResource(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).
+	mockEcsAPI.EXPECT().ListTagsForResource(gomock.Any(), gomock.Any(), gomock.Any()).Times(1).
 		DoAndReturn(func(_ context.Context, param *ecs.ListTagsForResourceInput, optFns ...func(*ecs.Options)) (*ecs.ListTagsForResourceOutput, error) {
 			return &ecs.ListTagsForResourceOutput{
 				Tags: []types.Tag{{Key: aws.String("Application"), Value: aws.String("live-app")}},
@@ -66,8 +66,8 @@ func TestFilterServiceByTagsShouldMatch(t *testing.T) {
 		})
 
 	mockProvider := mock_awsapis.NewMockAWSProvider(ctrl)
-	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsApi)
-	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsApi)
+	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsAPI)
+	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsAPI)
 
 	config := domain.TargetSelector{
 		Type: RESOURCE_TYPE,
@@ -89,11 +89,11 @@ func TestFilterServiceByTagsShouldMatchResultsFromAllPages(t *testing.T) {
 	listClustersPager := createListClusterPager(ctrl, [][]string{{"test-cluster"}})
 	listServicesPager := createListServicesPager(ctrl, [][]string{{"test-service", "test-service-2"}, {"test-service-3"}})
 
-	mockEcsApi := mock_awsapis.NewMockEcsApi(ctrl)
-	mockEcsApi.EXPECT().NewListClustersPaginator(gomock.Any()).Times(1).Return(listClustersPager)
-	mockEcsApi.EXPECT().NewListServicesPaginator(gomock.Any()).Times(1).Return(listServicesPager)
+	mockEcsAPI := mock_awsapis.NewMockEcsApi(ctrl)
+	mockEcsAPI.EXPECT().NewListClustersPaginator(gomock.Any()).Times(1).Return(listClustersPager)
+	mockEcsAPI.EXPECT().NewListServicesPaginator(gomock.Any()).Times(1).Return(listServicesPager)
 
-	mockEcsApi.EXPECT().ListTagsForResource(gomock.Any(), gomock.Any(), gomock.Any()).Times(3).
+	mockEcsAPI.EXPECT().ListTagsForResource(gomock.Any(), gomock.Any(), gomock.Any()).Times(3).
 		DoAndReturn(func(_ context.Context, param *ecs.ListTagsForResourceInput, optFns ...func(*ecs.Options)) (*ecs.ListTagsForResourceOutput, error) {
 			return &ecs.ListTagsForResourceOutput{
 				Tags: []types.Tag{{Key: aws.String("Application"), Value: aws.String("live-app")}},
@@ -101,8 +101,8 @@ func TestFilterServiceByTagsShouldMatchResultsFromAllPages(t *testing.T) {
 		})
 
 	mockProvider := mock_awsapis.NewMockAWSProvider(ctrl)
-	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsApi)
-	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsApi)
+	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsAPI)
+	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsAPI)
 
 	config := domain.TargetSelector{
 		Type: RESOURCE_TYPE,
@@ -126,7 +126,7 @@ func createListClusterPager(ctrl *gomock.Controller, arnsPages [][]string) *mock
 		mockListClusterPager.EXPECT().HasMorePages().Times(1).Return(false),
 	)
 	calls := []*gomock.Call{}
-	for idx, _ := range arnsPages {
+	for idx := range arnsPages {
 		c := mockListClusterPager.EXPECT().NextPage(gomock.Any()).Times(1).
 			Return(&ecs.ListClustersOutput{
 				ClusterArns: arnsPages[idx],
@@ -145,7 +145,7 @@ func createListServicesPager(ctrl *gomock.Controller, arnsPages [][]string) *moc
 		mockListServicePager.EXPECT().HasMorePages().Times(1).Return(false),
 	)
 	calls := []*gomock.Call{}
-	for idx, _ := range arnsPages {
+	for idx := range arnsPages {
 		c := mockListServicePager.EXPECT().NextPage(gomock.Any()).Times(1).
 			Return(&ecs.ListServicesOutput{
 				ServiceArns: arnsPages[idx],
