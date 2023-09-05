@@ -55,14 +55,13 @@ func NewFromConfig(selector domain.TargetSelector, provider awsapis.AWSProvider)
 		}
 	}
 
-	objs := []domain.ConsistentStateResource{}
+	objs := make([]domain.ConsistentStateResource, len(asgNames))
 
-	for _, name := range asgNames {
-		objs = append(objs,
-			AutoScalingGroup{
-				Provider:             provider,
-				AutoScalingGroupName: name,
-			})
+	for idx := range asgNames {
+		objs[idx] = AutoScalingGroup{
+			Provider:             provider,
+			AutoScalingGroupName: asgNames[idx],
+		}
 	}
 
 	return objs, nil

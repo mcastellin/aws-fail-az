@@ -89,3 +89,17 @@ func (mr *MockAWSProviderMockRecorder) NewEcsApi() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewEcsApi", reflect.TypeOf((*MockAWSProvider)(nil).NewEcsApi))
 }
+
+// NewElbV2Api mocks base method.
+func (m *MockAWSProvider) NewElbV2Api() awsapis.ElbV2Api {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewElbV2Api")
+	ret0, _ := ret[0].(awsapis.ElbV2Api)
+	return ret0
+}
+
+// NewElbV2Api indicates an expected call of NewElbV2Api.
+func (mr *MockAWSProviderMockRecorder) NewElbV2Api() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewElbV2Api", reflect.TypeOf((*MockAWSProvider)(nil).NewElbV2Api))
+}
