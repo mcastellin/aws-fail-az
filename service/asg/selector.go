@@ -11,7 +11,7 @@ import (
 	"github.com/mcastellin/aws-fail-az/service/awsutils"
 )
 
-func RestoreFromState(stateData []byte, provider *awsapis.AWSProvider) error {
+func RestoreFromState(stateData []byte, provider awsapis.AWSProvider) error {
 	var state AutoScalingGroupState
 	err := json.Unmarshal(stateData, &state)
 	if err != nil {
@@ -25,7 +25,7 @@ func RestoreFromState(stateData []byte, provider *awsapis.AWSProvider) error {
 	}.Restore()
 }
 
-func NewFromConfig(selector domain.ServiceSelector, provider *awsapis.AWSProvider) ([]domain.ConsistentStateService, error) {
+func NewFromConfig(selector domain.TargetSelector, provider awsapis.AWSProvider) ([]domain.ConsistentStateResource, error) {
 
 	if selector.Type != RESOURCE_TYPE {
 		return nil, fmt.Errorf("Unable to create AutoScalingGroup object from selector of type %s.", selector.Type)
@@ -48,14 +48,14 @@ func NewFromConfig(selector domain.ServiceSelector, provider *awsapis.AWSProvide
 		asgNames = []string{attributes["name"]}
 
 	} else if len(selector.Tags) > 0 {
-		api := awsapis.NewAutoScalingApi(provider)
+		api := provider.NewAutoScalingApi()
 		asgNames, err = filterAutoScalingGroupsByTags(api, selector.Tags)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	objs := []domain.ConsistentStateService{}
+	objs := []domain.ConsistentStateResource{}
 
 	for _, name := range asgNames {
 		objs = append(objs,

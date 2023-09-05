@@ -6,12 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 )
 
-func NewEcsApi(provider *AWSProvider) EcsApi {
-	return &AwsEcsApi{
-		client: ecs.NewFromConfig(provider.GetConnection()),
-	}
-}
-
 // Interfaces
 type EcsApi interface {
 	EcsTagsLister

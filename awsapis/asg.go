@@ -6,12 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 )
 
-func NewAutoScalingApi(provider *AWSProvider) AutoScalingApi {
-	return &AwsAutoScalingApi{
-		client: autoscaling.NewFromConfig(provider.GetConnection()),
-	}
-}
-
 // Interfaces
 type AutoScalingApi interface {
 	AutoScalingDescriber

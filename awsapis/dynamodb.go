@@ -7,12 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 )
 
-func NewDynamodbApi(provider *AWSProvider) DynamodbApi {
-	return &AwsDynamodbApi{
-		client: dynamodb.NewFromConfig(provider.GetConnection()),
-	}
-}
-
 // Interfaces
 type DynamodbApi interface {
 	DynamodbItemGetter

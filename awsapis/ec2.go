@@ -6,12 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 )
 
-func NewEc2Api(provider *AWSProvider) Ec2Api {
-	return &AwsEc2Api{
-		client: ec2.NewFromConfig(provider.GetConnection()),
-	}
-}
-
 // Interfaces
 type Ec2Api interface {
 	Ec2SubnetsDescriptor

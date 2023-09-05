@@ -20,23 +20,24 @@ func RecoverCommand(namespace string) {
 	provider := awsapis.NewProviderFromConfig(&cfg)
 
 	stateManager := &state.StateManagerImpl{
-		Api:       awsapis.NewDynamodbApi(&provider),
+		Api:       provider.NewDynamodbApi(),
 		Namespace: namespace,
 	}
 
 	stateManager.Initialize()
 
-	states, err := stateManager.ReadStates(&state.QueryStatesInput{})
+	states, err := stateManager.QueryStates(&state.QueryStatesInput{})
 	if err != nil {
 		log.Panic(err)
 	}
 	for _, s := range states {
-		if s.ResourceType == ecs.RESOURCE_TYPE {
-			err = ecs.RestoreFromState(s.State, &provider)
-		} else if s.ResourceType == asg.RESOURCE_TYPE {
-			err = asg.RestoreFromState(s.State, &provider)
-		} else {
-			err = fmt.Errorf("Unknown resource of type %s found in state with key %s. Object will be ignored.\n",
+		switch s.ResourceType {
+		case ecs.RESOURCE_TYPE:
+			err = ecs.RestoreFromState(s.State, provider)
+		case asg.RESOURCE_TYPE:
+			err = asg.RestoreFromState(s.State, provider)
+		default:
+			err = fmt.Errorf("unknown resource of type %s found in state with key %s. Object will be ignored",
 				s.ResourceType,
 				s.Key,
 			)
@@ -45,7 +46,10 @@ func RecoverCommand(namespace string) {
 		if err != nil {
 			log.Println(err)
 		} else {
-			stateManager.RemoveState(s)
+			err = stateManager.RemoveState(s)
+			if err != nil {
+				log.Printf("Error removing state from storage: %v", err)
+			}
 		}
 	}
 }

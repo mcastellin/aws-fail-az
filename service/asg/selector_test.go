@@ -15,50 +15,25 @@ import (
 )
 
 func TestFilterAsgByTagsShouldNotMatchResults(t *testing.T) {
-
 	ctrl, _ := gomock.WithContext(context.Background(), t)
 	defer ctrl.Finish()
 	mockApi := mock_awsapis.NewMockAutoScalingApi(ctrl)
-	mockPager := mock_awsapis.NewMockDescribeAutoScalingGroupsPager(ctrl)
+
+	pages := [][]types.AutoScalingGroup{{
+		{
+			AutoScalingGroupName: aws.String("asg-name-test"),
+			Tags: []types.TagDescription{
+				{Key: aws.String("Application"), Value: aws.String("myapp")},
+				{Key: aws.String("Application"), Value: aws.String("test")},
+			},
+		},
+	}}
+	mockPager := createDescribeAsgPaginator(ctrl, pages)
 
 	mockApi.EXPECT().
 		NewDescribeAutoScalingGroupsPaginator(gomock.Any()).
 		Times(1).
-		DoAndReturn(func(_ *autoscaling.DescribeAutoScalingGroupsInput) awsapis.DescribeAutoScalingGroupsPager {
-			return mockPager
-		})
-
-	gomock.InOrder(
-		mockPager.EXPECT().
-			HasMorePages().
-			Times(1).
-			DoAndReturn(func() bool {
-				return true
-			}),
-		mockPager.EXPECT().
-			HasMorePages().
-			Times(1).
-			DoAndReturn(func() bool {
-				return false
-			}),
-	)
-
-	mockPager.EXPECT().
-		NextPage(gomock.Any()).
-		Times(1).
-		DoAndReturn(func(_ context.Context, optFns ...func(*autoscaling.Options)) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
-			out := &autoscaling.DescribeAutoScalingGroupsOutput{
-				AutoScalingGroups: []types.AutoScalingGroup{{
-					AutoScalingGroupName: aws.String("asg-name-test"),
-					Tags: []types.TagDescription{
-						{Key: aws.String("Application"), Value: aws.String("myapp")},
-						{Key: aws.String("Application"), Value: aws.String("test")},
-					},
-				}},
-			}
-
-			return out, nil
-		})
+		Return(mockPager)
 
 	filter := []domain.AWSTag{{
 		Name:  "Application",
@@ -76,11 +51,27 @@ func TestFilterAsgByTagsShouldNotMatchResults(t *testing.T) {
 }
 
 func TestFilterAsgByTagsShouldMatchResultsInAllPages(t *testing.T) {
-
 	ctrl, _ := gomock.WithContext(context.Background(), t)
 	defer ctrl.Finish()
 	mockApi := mock_awsapis.NewMockAutoScalingApi(ctrl)
-	mockPager := mock_awsapis.NewMockDescribeAutoScalingGroupsPager(ctrl)
+
+	pages := [][]types.AutoScalingGroup{
+		{{
+			AutoScalingGroupName: aws.String("asg-name-test"),
+			Tags: []types.TagDescription{
+				{Key: aws.String("Application"), Value: aws.String("myapp")},
+				{Key: aws.String("Application"), Value: aws.String("test")},
+			},
+		}},
+		{{
+			AutoScalingGroupName: aws.String("asg-name-live"),
+			Tags: []types.TagDescription{
+				{Key: aws.String("Application"), Value: aws.String("myapp")},
+				{Key: aws.String("Application"), Value: aws.String("live")},
+			},
+		}},
+	}
+	mockPager := createDescribeAsgPaginator(ctrl, pages)
 
 	mockApi.EXPECT().
 		NewDescribeAutoScalingGroupsPaginator(gomock.Any()).
@@ -88,56 +79,6 @@ func TestFilterAsgByTagsShouldMatchResultsInAllPages(t *testing.T) {
 		DoAndReturn(func(_ *autoscaling.DescribeAutoScalingGroupsInput) awsapis.DescribeAutoScalingGroupsPager {
 			return mockPager
 		})
-
-	gomock.InOrder(
-		mockPager.EXPECT().
-			HasMorePages().
-			Times(2).
-			DoAndReturn(func() bool {
-				return true
-			}),
-		mockPager.EXPECT().
-			HasMorePages().
-			Times(1).
-			DoAndReturn(func() bool {
-				return false
-			}),
-	)
-
-	gomock.InOrder(
-		mockPager.EXPECT().
-			NextPage(gomock.Any()).
-			Times(1).
-			DoAndReturn(func(_ context.Context, optFns ...func(*autoscaling.Options)) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
-				out := &autoscaling.DescribeAutoScalingGroupsOutput{
-					AutoScalingGroups: []types.AutoScalingGroup{{
-						AutoScalingGroupName: aws.String("asg-name-test"),
-						Tags: []types.TagDescription{
-							{Key: aws.String("Application"), Value: aws.String("myapp")},
-							{Key: aws.String("Application"), Value: aws.String("test")},
-						},
-					}},
-				}
-
-				return out, nil
-			}),
-		mockPager.EXPECT().
-			NextPage(gomock.Any()).
-			Times(1).
-			DoAndReturn(func(_ context.Context, optFns ...func(*autoscaling.Options)) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
-				out := &autoscaling.DescribeAutoScalingGroupsOutput{
-					AutoScalingGroups: []types.AutoScalingGroup{{
-						AutoScalingGroupName: aws.String("asg-name-live"),
-						Tags: []types.TagDescription{
-							{Key: aws.String("Application"), Value: aws.String("myapp")},
-							{Key: aws.String("Application"), Value: aws.String("live")},
-						},
-					}},
-				}
-
-				return out, nil
-			}),
-	)
 
 	filter := []domain.AWSTag{{
 		Name:  "Application",
@@ -149,4 +90,24 @@ func TestFilterAsgByTagsShouldMatchResultsInAllPages(t *testing.T) {
 
 	assert.Equal(t, []string{"asg-name-test", "asg-name-live"}, result)
 	assert.Nil(t, err)
+}
+
+func createDescribeAsgPaginator(ctrl *gomock.Controller, pages [][]types.AutoScalingGroup) *mock_awsapis.MockDescribeAutoScalingGroupsPager {
+	mockPager := mock_awsapis.NewMockDescribeAutoScalingGroupsPager(ctrl)
+
+	gomock.InOrder(
+		mockPager.EXPECT().HasMorePages().Times(len(pages)).Return(true),
+		mockPager.EXPECT().HasMorePages().Times(1).Return(false),
+	)
+	calls := []*gomock.Call{}
+	for idx := range pages {
+		c := mockPager.EXPECT().NextPage(gomock.Any()).Times(1).Return(
+			&autoscaling.DescribeAutoScalingGroupsOutput{
+				AutoScalingGroups: pages[idx],
+			}, nil)
+		calls = append(calls, c)
+	}
+	gomock.InOrder(calls...)
+
+	return mockPager
 }

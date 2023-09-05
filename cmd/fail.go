@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/mcastellin/aws-fail-az/awsapis"
@@ -16,17 +17,6 @@ import (
 	"github.com/mcastellin/aws-fail-az/service/ecs"
 	"github.com/mcastellin/aws-fail-az/state"
 )
-
-func validate(svc domain.ConsistentStateService, ch chan<- bool, wg *sync.WaitGroup) {
-	defer wg.Done()
-	isValid, err := svc.Check()
-	if err != nil {
-		log.Println(err)
-		ch <- false
-	} else {
-		ch <- isValid
-	}
-}
 
 func FailCommand(namespace string, readFromStdin bool, configFile string) {
 
@@ -60,50 +50,44 @@ func FailCommand(namespace string, readFromStdin bool, configFile string) {
 	provider := awsapis.NewProviderFromConfig(&cfg)
 
 	stateManager := &state.StateManagerImpl{
-		Api:       awsapis.NewDynamodbApi(&provider),
+		Api:       provider.NewDynamodbApi(),
 		Namespace: namespace,
 	}
 
 	stateManager.Initialize()
 
-	allServices := make([]domain.ConsistentStateService, 0)
+	allServices := make([]domain.ConsistentStateResource, 0)
 
-	for _, svc := range faultConfig.Services {
-		var svcConfigs []domain.ConsistentStateService
+	for _, target := range faultConfig.Targets {
+		var targetConfigs []domain.ConsistentStateResource
 		var err error
 
 		switch {
-		case svc.Type == ecs.RESOURCE_TYPE:
-			svcConfigs, err = ecs.NewFromConfig(svc, &provider)
-		case svc.Type == asg.RESOURCE_TYPE:
-			svcConfigs, err = asg.NewFromConfig(svc, &provider)
+		case target.Type == ecs.RESOURCE_TYPE:
+			targetConfigs, err = ecs.NewFromConfig(target, provider)
+		case target.Type == asg.RESOURCE_TYPE:
+			targetConfigs, err = asg.NewFromConfig(target, provider)
 		default:
-			err = fmt.Errorf("Could not recognize resource type %s", svc.Type)
+			err = fmt.Errorf("Could not recognize resource type %s", target.Type)
 		}
 		if err != nil {
 			log.Panic(err)
 		}
-		allServices = append(allServices, svcConfigs...)
+		allServices = append(allServices, targetConfigs...)
 
 	}
 
-	validationResults := make(chan bool, len(allServices))
+	log.Println("INFO: Checking resources state is stable before AZ failure.")
+	ctx, cancel := context.WithDeadline(context.TODO(), time.Now().Add(15*time.Minute))
+	defer cancel()
 
-	var wg sync.WaitGroup
-	for _, svc := range allServices {
-		wg.Add(1)
-		go validate(svc, validationResults, &wg)
+	err = checkResourceStates(ctx, allServices)
+	if err != nil {
+		log.Println(err)
+		log.Fatal("Exiting.")
 	}
 
-	wg.Wait()
-	close(validationResults)
-
-	for isValid := range validationResults {
-		if !isValid {
-			log.Panic("One or more resources failed state checks. Panic.")
-		}
-	}
-
+	log.Println("INFO: Saving resources' states in state table.")
 	for _, svc := range allServices {
 		err = svc.Save(stateManager)
 		if err != nil {
@@ -111,10 +95,48 @@ func FailCommand(namespace string, readFromStdin bool, configFile string) {
 		}
 	}
 
+	log.Println("INFO: Failing configured AZs.")
 	for _, svc := range allServices {
 		err = svc.Fail(faultConfig.Azs)
 		if err != nil {
 			log.Panic(err)
 		}
 	}
+}
+
+func checkResourceStates(ctx context.Context, resources []domain.ConsistentStateResource) error {
+	checkResults := make(chan bool, len(resources))
+
+	wg := new(sync.WaitGroup)
+	for _, resource := range resources {
+		wg.Add(1)
+		go func(resource domain.ConsistentStateResource) {
+			defer wg.Done()
+			select {
+			case <-ctx.Done():
+				checkResults <- false
+			default:
+				isValid, err := resource.Check()
+				if err != nil {
+					log.Println(err)
+					isValid = false
+				}
+				checkResults <- isValid
+			}
+		}(resource)
+	}
+
+	wg.Wait()
+	close(checkResults)
+
+	validCount := 0
+	for isValid := range checkResults {
+		if isValid {
+			validCount++
+		}
+	}
+	if validCount < len(resources) {
+		return fmt.Errorf("ERROR: One or more resources failed state checks")
+	}
+	return nil
 }
