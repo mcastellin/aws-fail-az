@@ -1,6 +1,6 @@
 # AWS Fail AZ
 
-**AWS Fail AZ** is a command-line program to simulate AZ (Availability Zone) failures on AWS services.
+**AWS Fail AZ** is a command-line program to simulate AZ (Availability Zone) failures on AWS resources.
 
 
 ## Getting Started
@@ -34,9 +34,9 @@ To verify the binary installation was successful, run `aws-fail-az version`.
 
 ## Usage
 
-**aws-fail-az** can simulate AZ (Availability Zone) failure on a number of AWS services. (To see a list of all available resources see the [Failure Configuration](#failure-configuration) section).
+**aws-fail-az** can simulate AZ (Availability Zone) failure on a number of AWS resources. (To see a list of all available resources see the [Failure Configuration](#failure-configuration) section).
 
-### Fail AZs for configured services
+### Fail AZs for configured target resources
 
 Once you have created your configuration file, you can apply AZ failure to the infrastructure using the `fail` command:
 
@@ -58,7 +58,7 @@ aws-fail-az fail --stdin <<EOF
   "azs": [
     "us-east-1b"
   ],
-  "services": [
+  "targets": [
     {
       "type": "auto-scaling-group",
       "filter": "name=<ASG_NAME>"
@@ -98,7 +98,7 @@ The structure of the configuration file is as follows:
     "us-east-1b",
     ...
   ],
-  "services": [
+  "targets": [
     {
       "type": "ecs-service",
       "filter": "cluster=<CLUSTER_NAME>;service=<SERVICE_NAME>",
@@ -124,15 +124,15 @@ Use the `azs` field to specify the list of availability zones to fail.
 
 Availability zones are typically identified in AWS by the *region-name* followed by a *letter* (i.e. *us-east-1a, us-east-1b,* ...).
 
-#### `services`: list[object]
+#### `targets`: list[object]
 
-The `services` field contains a list of objects used by **aws-fail-az** to filter AWS resources to attack.
+The `targets` field contains a list of objects used by **aws-fail-az** to select AWS resources to attack.
 
 Available fields are the following:
 
 **type** (Required)
 
-The type of services to select. For a full list of available types see the [Available Resources](#available-resources) section.
+The type of resources to select. For a full list of available types see the [Available Resources](#available-resources) section.
 
 **filter** (Optional)
 
@@ -140,7 +140,7 @@ Select resources using a filter expression.
 
 The expression syntax is a list of resource attributes separated by a semi-colon `;` character. Available attributes for filtering vary depending on the type of resource being selected.
 
-> Only one selection strategy between `filter` and `tags` is allowed for every service.
+> Only one selection strategy between `filter` and `tags` is allowed for every target selector.
 
 **tags** (Optional)
 
@@ -148,7 +148,7 @@ Select resources using tags.
 
 Using the `tags` attribute will select all resource of the specified *type* where all tags are associated.
 
-> Only one selection strategy between `filter` and `tags` is allowed for every service.
+> Only one selection strategy between `filter` and `tags` is allowed for every target selector.
 
 ### Available Resources
 
@@ -166,7 +166,7 @@ Select ECS service by cluster and service name:
   "azs": [
     "us-east-1b"
   ],
-  "services": [
+  "targets": [
     {
       "type": "ecs-service",
       "filter": "cluster=<CLUSTER_NAME>;service=<SERVICE_NAME>"
@@ -183,7 +183,7 @@ Select ECS services by tags:
   "azs": [
     "us-east-1b"
   ],
-  "services": [
+  "targets": [
     {
       "type": "ecs-service",
       "tags": [
@@ -211,7 +211,7 @@ Select Auto Scaling Groups by name:
   "azs": [
     "us-east-1b"
   ],
-  "services": [
+  "targets": [
     {
       "type": "auto-scaling-group",
       "filter": "name=<ASG_name>"
