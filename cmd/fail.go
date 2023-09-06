@@ -15,6 +15,7 @@ import (
 	"github.com/mcastellin/aws-fail-az/domain"
 	"github.com/mcastellin/aws-fail-az/service/asg"
 	"github.com/mcastellin/aws-fail-az/service/ecs"
+	"github.com/mcastellin/aws-fail-az/service/elbv2"
 	"github.com/mcastellin/aws-fail-az/state"
 )
 
@@ -67,6 +68,8 @@ func FailCommand(namespace string, readFromStdin bool, configFile string) {
 			targetConfigs, err = ecs.NewFromConfig(target, provider)
 		case target.Type == asg.RESOURCE_TYPE:
 			targetConfigs, err = asg.NewFromConfig(target, provider)
+		case target.Type == elbv2.RESOURCE_TYPE:
+			targetConfigs, err = elbv2.NewFromConfig(target, provider)
 		default:
 			err = fmt.Errorf("Could not recognize resource type %s", target.Type)
 		}

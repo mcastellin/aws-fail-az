@@ -9,6 +9,7 @@ import (
 	"github.com/mcastellin/aws-fail-az/awsapis"
 	"github.com/mcastellin/aws-fail-az/service/asg"
 	"github.com/mcastellin/aws-fail-az/service/ecs"
+	"github.com/mcastellin/aws-fail-az/service/elbv2"
 	"github.com/mcastellin/aws-fail-az/state"
 )
 
@@ -36,6 +37,8 @@ func RecoverCommand(namespace string) {
 			err = ecs.RestoreFromState(s.State, provider)
 		case asg.RESOURCE_TYPE:
 			err = asg.RestoreFromState(s.State, provider)
+		case elbv2.RESOURCE_TYPE:
+			err = elbv2.RestoreFromState(s.State, provider)
 		default:
 			err = fmt.Errorf("unknown resource of type %s found in state with key %s. Object will be ignored",
 				s.ResourceType,

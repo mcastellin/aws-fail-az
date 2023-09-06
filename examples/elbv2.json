@@ -1,0 +1,20 @@
+{
+  "azs": [
+    "us-east-1a"
+  ],
+  "targets": [
+    {
+      "type": "elbv2-load-balancer",
+      "tags": [
+        {
+          "Name": "Name",
+          "Value": "tutorial-sample-app-front-alb"
+        }
+      ]
+    },
+    {
+      "type": "elbv2-load-balancer",
+      "filter": "name=tutorial-sample-app-back-alb"
+    }
+  ]
+}

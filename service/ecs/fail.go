@@ -47,7 +47,7 @@ func (svc ECSService) Check() (bool, error) {
 
 	result, err := serviceStable(api, svc.ClusterArn, svc.ServiceName)
 	if err != nil {
-		return false, nil
+		return false, err
 	}
 
 	return isValid && result, nil
