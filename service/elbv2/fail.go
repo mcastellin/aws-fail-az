@@ -29,8 +29,6 @@ type LoadBalancer struct {
 }
 
 func (lb LoadBalancer) Check() (bool, error) {
-	isValid := true
-
 	log.Printf("%s name=%s: checking resource state before failure simulation",
 		RESOURCE_TYPE, lb.Name)
 
@@ -45,9 +43,13 @@ func (lb LoadBalancer) Check() (bool, error) {
 	}
 	subnetIds := getLoadBalancerSubnets(output.LoadBalancers[0])
 
-	isValid = isValid && len(subnetIds) >= 2
+	if len(subnetIds) <= 2 {
+		return false, fmt.Errorf("Insufficient number of subnets for resource %s."+
+			" Load balancers require a minimum of 3 availability zones to simulate AZ failure, found %d.",
+			lb.Name, len(subnetIds))
+	}
 
-	return isValid, nil
+	return true, nil
 }
 
 func (lb LoadBalancer) Save(stateManager state.StateManager) error {
