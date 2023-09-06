@@ -2,6 +2,8 @@ package elbv2
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -65,4 +67,84 @@ func TestCheckPass(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.True(t, result)
+}
+
+func TestDescribeLoadBalancerWithArn(t *testing.T) {
+	ctrl, _ := gomock.WithContext(context.Background(), t)
+	defer ctrl.Finish()
+
+	const arn string = "arn:aws:elasticloadbalancing:us-east-1:000000000000:loadbalancer/app/test-alb-1/xxxxxxxxxxxxxxx"
+
+	mockApi := mock_awsapis.NewMockElbV2Api(ctrl)
+	mockProvider := mock_awsapis.NewMockAWSProvider(ctrl)
+	mockProvider.EXPECT().NewElbV2Api().AnyTimes().Return(mockApi)
+
+	matcher := describeLoadBalancersMatcher{&elasticloadbalancingv2.DescribeLoadBalancersInput{
+		LoadBalancerArns: []string{arn},
+	}}
+	mockApi.EXPECT().DescribeLoadBalancers(gomock.Any(), matcher).Times(1).
+		Return(&elasticloadbalancingv2.DescribeLoadBalancersOutput{
+			LoadBalancers: []types.LoadBalancer{{
+				AvailabilityZones: []types.AvailabilityZone{
+					{SubnetId: aws.String("s-1111")},
+					{SubnetId: aws.String("s-2222")},
+					{SubnetId: aws.String("s-3333")},
+				},
+			}},
+		}, nil)
+
+	result, err := LoadBalancer{
+		Provider: mockProvider,
+		Name:     arn,
+	}.Check()
+
+	assert.Nil(t, err)
+	assert.True(t, result)
+}
+
+func TestDescribeLoadBalancerWithName(t *testing.T) {
+	ctrl, _ := gomock.WithContext(context.Background(), t)
+	defer ctrl.Finish()
+
+	mockApi := mock_awsapis.NewMockElbV2Api(ctrl)
+	mockProvider := mock_awsapis.NewMockAWSProvider(ctrl)
+	mockProvider.EXPECT().NewElbV2Api().AnyTimes().Return(mockApi)
+
+	matcher := describeLoadBalancersMatcher{&elasticloadbalancingv2.DescribeLoadBalancersInput{
+		Names: []string{"alb-name"},
+	}}
+	mockApi.EXPECT().DescribeLoadBalancers(gomock.Any(), matcher).Times(1).
+		Return(&elasticloadbalancingv2.DescribeLoadBalancersOutput{
+			LoadBalancers: []types.LoadBalancer{{
+				AvailabilityZones: []types.AvailabilityZone{
+					{SubnetId: aws.String("s-1111")},
+					{SubnetId: aws.String("s-2222")},
+					{SubnetId: aws.String("s-3333")},
+				},
+			}},
+		}, nil)
+
+	result, err := LoadBalancer{
+		Provider: mockProvider,
+		Name:     "alb-name",
+	}.Check()
+
+	assert.Nil(t, err)
+	assert.True(t, result)
+}
+
+// Matchers
+type describeLoadBalancersMatcher struct {
+	x *elasticloadbalancingv2.DescribeLoadBalancersInput
+}
+
+func (m describeLoadBalancersMatcher) Matches(x interface{}) bool {
+	if y, ok := x.(*elasticloadbalancingv2.DescribeLoadBalancersInput); ok {
+		return reflect.DeepEqual(m.x, y)
+	}
+	return false
+}
+
+func (m describeLoadBalancersMatcher) String() string {
+	return fmt.Sprintf("%v", m.x)
 }
