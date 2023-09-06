@@ -20,6 +20,19 @@ func TestStateInitializeNewTableWithOsVar(t *testing.T) {
 
 	mockApi := mock_awsapis.NewMockDynamodbApi(ctrl)
 
+	validVersion := ResourceState{
+		Namespace:    "_system",
+		Key:          "/schema/version",
+		ResourceKey:  STATE_TABLE_SCHEMA_VERSION,
+		ResourceType: "nil",
+	}
+
+	item, err := attributevalue.MarshalMap(validVersion)
+	assert.Nil(t, err)
+
+	mockApi.EXPECT().GetItem(gomock.Any(), gomock.Any()).Times(1).
+		Return(&dynamodb.GetItemOutput{Item: item}, nil)
+
 	mockApi.EXPECT().DescribeTable(gomock.Any(), tableNameInputMatch{"test-value"}).
 		Times(1).
 		Return(&dynamodb.DescribeTableOutput{}, nil)
@@ -29,6 +42,8 @@ func TestStateInitializeNewTableWithOsVar(t *testing.T) {
 	}
 
 	mgr.Initialize()
+
+	assert.True(t, mgr.isInitialized)
 }
 
 func TestStateInitializeNewTable(t *testing.T) {
@@ -41,6 +56,26 @@ func TestStateInitializeNewTable(t *testing.T) {
 	mockWaiter.EXPECT().Wait(gomock.Any(), tableNameInputMatch{FALLBACK_STATE_TABLE_NAME}, gomock.Any()).
 		Times(1).
 		Return(nil)
+
+	validVersion := ResourceState{
+		Namespace:    "_system",
+		Key:          "/schema/version",
+		ResourceKey:  STATE_TABLE_SCHEMA_VERSION,
+		ResourceType: "nil",
+	}
+
+	item, err := attributevalue.MarshalMap(validVersion)
+	assert.Nil(t, err)
+
+	gomock.InOrder(
+		mockApi.EXPECT().GetItem(gomock.Any(), gomock.Any()).Times(1).
+			Return(&dynamodb.GetItemOutput{Item: map[string]types.AttributeValue{}}, nil),
+		mockApi.EXPECT().GetItem(gomock.Any(), gomock.Any()).Times(1).
+			Return(&dynamodb.GetItemOutput{Item: item}, nil),
+	)
+
+	mockApi.EXPECT().PutItem(gomock.Any(), gomock.Any()).Times(1).
+		Return(&dynamodb.PutItemOutput{}, nil)
 
 	mockApi.EXPECT().NewTableExistsWaiter().Times(1).Return(mockWaiter)
 	mockApi.EXPECT().DescribeTable(gomock.Any(), gomock.Any()).
@@ -69,6 +104,7 @@ func TestSaveStateShouldNotOverrideExistingKeys(t *testing.T) {
 		})
 
 	mgr := StateManagerImpl{Api: mockApi}
+	mgr.isInitialized = true
 
 	err := mgr.Save("type", "key", []byte("payload"))
 
