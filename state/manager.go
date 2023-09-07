@@ -16,6 +16,9 @@ import (
 	"github.com/mcastellin/aws-fail-az/awsapis"
 )
 
+// The current schema version of the state table
+const STATE_TABLE_SCHEMA_VERSION string = "2023-09-06"
+
 // The default table name to store resource states
 const FALLBACK_STATE_TABLE_NAME string = "aws-fail-az-state-table"
 
@@ -25,7 +28,7 @@ type StateManager interface {
 	// Initialize the state manager by establishing the connection with Dynamodb
 	// This function only needs to be called once for every object that implements
 	// StateManager. Further calls will have no effect
-	Initialize()
+	Initialize() error
 
 	// Save a new state in storage
 	Save(resourceType string, resourceKey string, state []byte) error
@@ -94,12 +97,13 @@ func (state ResourceState) GetKey() map[string]types.AttributeValue {
 
 // A State Manager object to interact with resource state storage
 type StateManagerImpl struct {
-	Api       awsapis.DynamodbApi
-	TableName string
-	Namespace string
+	Api           awsapis.DynamodbApi
+	TableName     string
+	Namespace     string
+	isInitialized bool
 }
 
-func (m *StateManagerImpl) Initialize() {
+func (m *StateManagerImpl) Initialize() error {
 	stateTableName := os.Getenv("AWS_FAIL_AZ_STATE_TABLE")
 	if stateTableName == "" {
 		log.Printf("AWS_FAIL_AZ_STATE_TABLE variable is not set. Using default %s", FALLBACK_STATE_TABLE_NAME)
@@ -110,23 +114,37 @@ func (m *StateManagerImpl) Initialize() {
 
 	exists, err := m.tableExists()
 	if err != nil {
-		log.Fatalf("An unknown error occurred: %v", err)
+		return fmt.Errorf("An unknown error occurred: %v", err)
 	}
 
 	if !exists {
 		log.Printf("State table with name %s not found. Creating...", stateTableName)
 		_, err := m.createTable()
 		if err != nil {
-			log.Fatalf("Error creating state table in Dynamodb. %v", err)
+			return fmt.Errorf("ERROR: creating state table in Dynamodb. %v", err)
+		}
+		err = m.writeSchemaVersion()
+		if err != nil {
+			return fmt.Errorf("ERROR: populating state table version in Dynamodb. %v", err)
 		}
 	}
 
 	if m.Namespace == "" {
 		m.Namespace = "default"
 	}
+
+	if err := m.checkSchemaVersion(); err != nil {
+		return fmt.Errorf("ERROR: state table version check failed. %v", err)
+	}
+
+	m.isInitialized = true
+	return nil
 }
 
 func (m StateManagerImpl) Save(resourceType string, resourceKey string, state []byte) error {
+	if err := m.checkInitialized(); err != nil {
+		return err
+	}
 	key := m.formatStateKey(resourceType, resourceKey)
 	stateObj := ResourceState{
 		Namespace:    m.Namespace,
@@ -158,14 +176,15 @@ func (m StateManagerImpl) Save(resourceType string, resourceKey string, state []
 		TableName: aws.String(m.TableName),
 		Item:      item,
 	})
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
 
 func (m StateManagerImpl) GetState(resourceType string, resourceKey string) (*ResourceState, error) {
+	if err := m.checkInitialized(); err != nil {
+		return nil, err
+	}
+
 	key := m.formatStateKey(resourceType, resourceKey)
 	stateObj := ResourceState{
 		Namespace:    m.Namespace,
@@ -195,6 +214,10 @@ func (m StateManagerImpl) GetState(resourceType string, resourceKey string) (*Re
 }
 
 func (m StateManagerImpl) QueryStates(params *QueryStatesInput) ([]ResourceState, error) {
+	if err := m.checkInitialized(); err != nil {
+		return nil, err
+	}
+
 	keyExpr := expression.Key("namespace").Equal(expression.Value(m.Namespace))
 	builder := expression.NewBuilder().WithKeyCondition(keyExpr)
 	builder = params.filterExpression(builder)
@@ -237,6 +260,10 @@ func (m StateManagerImpl) QueryStates(params *QueryStatesInput) ([]ResourceState
 }
 
 func (m StateManagerImpl) RemoveState(stateObj ResourceState) error {
+	if err := m.checkInitialized(); err != nil {
+		return err
+	}
+
 	deleteItemInput := &dynamodb.DeleteItemInput{
 		TableName: aws.String(m.TableName),
 		Key:       stateObj.GetKey(),
@@ -246,6 +273,14 @@ func (m StateManagerImpl) RemoveState(stateObj ResourceState) error {
 		return err
 	}
 
+	return nil
+}
+
+func (m StateManagerImpl) checkInitialized() error {
+	if !m.isInitialized {
+		return fmt.Errorf("State table has not been initialized. Call `manager.Initialize()`" +
+			" after a new stata manager is created.")
+	}
 	return nil
 }
 
@@ -333,6 +368,72 @@ func (m StateManagerImpl) createTable() (*dynamodb.CreateTableOutput, error) {
 	}
 
 	return createOutput, nil
+}
+
+// Writes the current schema version into the state table
+func (m StateManagerImpl) writeSchemaVersion() error {
+	versionObj := ResourceState{
+		Namespace:    "_system",
+		Key:          "/schema/version",
+		ResourceKey:  STATE_TABLE_SCHEMA_VERSION,
+		ResourceType: "nil",
+	}
+
+	response, err := m.Api.GetItem(context.TODO(), &dynamodb.GetItemInput{
+		TableName: aws.String(m.TableName),
+		Key:       versionObj.GetKey(),
+	})
+	if err != nil {
+		return err
+	}
+	exists := len(response.Item) > 0
+	if exists {
+		return fmt.Errorf("schema version already exists for table %s", m.TableName)
+	}
+
+	item, err := attributevalue.MarshalMap(versionObj)
+	if err != nil {
+		return err
+	}
+	_, err = m.Api.PutItem(context.TODO(), &dynamodb.PutItemInput{
+		TableName: &m.TableName,
+		Item:      item,
+	})
+
+	return err
+}
+
+// Checks the state table version is the same as the required version
+func (m StateManagerImpl) checkSchemaVersion() error {
+	versionObj := ResourceState{
+		Namespace: "_system",
+		Key:       "/schema/version",
+	}
+
+	response, err := m.Api.GetItem(context.TODO(), &dynamodb.GetItemInput{
+		TableName: aws.String(m.TableName),
+		Key:       versionObj.GetKey(),
+	})
+	if err != nil {
+		return err
+	}
+	if len(response.Item) == 0 {
+		return fmt.Errorf("could not find table schema version for [%s] state table."+
+			" To fix this error, use a different state table or manually migrate to a newer schema version.",
+			m.TableName)
+	}
+
+	err = attributevalue.UnmarshalMap(response.Item, &versionObj)
+	if err != nil {
+		return err
+	}
+	if versionObj.ResourceKey != STATE_TABLE_SCHEMA_VERSION {
+		return fmt.Errorf("schema version for state table [%s] does not match current version %s."+
+			" To fix this error, use a different state table or manually migrate to a newer schema version.",
+			m.TableName, STATE_TABLE_SCHEMA_VERSION)
+	}
+
+	return nil
 }
 
 // Formats the full key attribute of the resource state object

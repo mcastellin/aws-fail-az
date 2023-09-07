@@ -55,7 +55,9 @@ func FailCommand(namespace string, readFromStdin bool, configFile string) {
 		Namespace: namespace,
 	}
 
-	stateManager.Initialize()
+	if err := stateManager.Initialize(); err != nil {
+		log.Fatalf(err.Error())
+	}
 
 	allServices := make([]domain.ConsistentStateResource, 0)
 
