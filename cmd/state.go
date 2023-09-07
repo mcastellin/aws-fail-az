@@ -39,7 +39,9 @@ func SaveState(namespace string,
 	}
 
 	stateManager := getManager(namespace)
-	stateManager.Initialize()
+	if err := stateManager.Initialize(); err != nil {
+		log.Fatalf(err.Error())
+	}
 
 	err = stateManager.Save(resourceType, resourceKey, statePayload)
 	if err != nil {
@@ -53,7 +55,9 @@ func ReadStates(namespace string, resourceType string, resourceKey string) {
 	log.SetOutput(io.Discard)
 
 	stateManager := getManager(namespace)
-	stateManager.Initialize()
+	if err := stateManager.Initialize(); err != nil {
+		log.Fatalf(err.Error())
+	}
 
 	states, err := stateManager.QueryStates(&state.QueryStatesInput{
 		ResourceType: resourceType,
@@ -89,7 +93,9 @@ func ReadStates(namespace string, resourceType string, resourceKey string) {
 func DeleteState(namespace string, resourceType string, resourceKey string) {
 
 	stateManager := getManager(namespace)
-	stateManager.Initialize()
+	if err := stateManager.Initialize(); err != nil {
+		log.Fatalf(err.Error())
+	}
 
 	result, err := stateManager.GetState(resourceType, resourceKey)
 	if err != nil {

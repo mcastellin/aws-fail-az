@@ -2,8 +2,11 @@ package state
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -33,7 +36,10 @@ func TestStateInitializeNewTableWithOsVar(t *testing.T) {
 	mockApi.EXPECT().GetItem(gomock.Any(), gomock.Any()).Times(1).
 		Return(&dynamodb.GetItemOutput{Item: item}, nil)
 
-	mockApi.EXPECT().DescribeTable(gomock.Any(), tableNameInputMatch{"test-value"}).
+	matcher := describeTableInputMatcher{&dynamodb.DescribeTableInput{
+		TableName: aws.String("test-value"),
+	}}
+	mockApi.EXPECT().DescribeTable(gomock.Any(), matcher).
 		Times(1).
 		Return(&dynamodb.DescribeTableOutput{}, nil)
 
@@ -41,9 +47,43 @@ func TestStateInitializeNewTableWithOsVar(t *testing.T) {
 		Api: mockApi,
 	}
 
-	mgr.Initialize()
+	err = mgr.Initialize()
 
+	assert.Nil(t, err)
 	assert.True(t, mgr.isInitialized)
+}
+
+func TestStateInitializeShouldFailWithWrongVersion(t *testing.T) {
+	ctrl, _ := gomock.WithContext(context.Background(), t)
+	defer ctrl.Finish()
+
+	mockApi := mock_awsapis.NewMockDynamodbApi(ctrl)
+
+	validVersion := ResourceState{
+		Namespace:    "_system",
+		Key:          "/schema/version",
+		ResourceKey:  "--incompatibile-schema-version--",
+		ResourceType: "nil",
+	}
+
+	item, err := attributevalue.MarshalMap(validVersion)
+	assert.Nil(t, err)
+
+	mockApi.EXPECT().GetItem(gomock.Any(), gomock.Any()).Times(1).
+		Return(&dynamodb.GetItemOutput{Item: item}, nil)
+
+	mockApi.EXPECT().DescribeTable(gomock.Any(), gomock.Any()).
+		Times(1).
+		Return(&dynamodb.DescribeTableOutput{}, nil)
+
+	mgr := StateManagerImpl{
+		Api: mockApi,
+	}
+
+	err = mgr.Initialize()
+
+	assert.NotNil(t, err)
+	assert.False(t, mgr.isInitialized)
 }
 
 func TestStateInitializeNewTable(t *testing.T) {
@@ -53,7 +93,10 @@ func TestStateInitializeNewTable(t *testing.T) {
 	mockApi := mock_awsapis.NewMockDynamodbApi(ctrl)
 	mockWaiter := mock_awsapis.NewMockDynamodbTableExistsWaiter(ctrl)
 
-	mockWaiter.EXPECT().Wait(gomock.Any(), tableNameInputMatch{FALLBACK_STATE_TABLE_NAME}, gomock.Any()).
+	matcher := describeTableInputMatcher{&dynamodb.DescribeTableInput{
+		TableName: aws.String(FALLBACK_STATE_TABLE_NAME),
+	}}
+	mockWaiter.EXPECT().Wait(gomock.Any(), matcher, gomock.Any()).
 		Times(1).
 		Return(nil)
 
@@ -87,7 +130,9 @@ func TestStateInitializeNewTable(t *testing.T) {
 
 	mgr := StateManagerImpl{Api: mockApi}
 
-	mgr.Initialize()
+	err = mgr.Initialize()
+
+	assert.Nil(t, err)
 }
 
 func TestSaveStateShouldNotOverrideExistingKeys(t *testing.T) {
@@ -112,19 +157,18 @@ func TestSaveStateShouldNotOverrideExistingKeys(t *testing.T) {
 }
 
 // Matchers
-func TableNameInputMatcher(x string) gomock.Matcher { return tableNameInputMatch{x} }
 
-type tableNameInputMatch struct {
-	x string
+type describeTableInputMatcher struct {
+	x *dynamodb.DescribeTableInput
 }
 
-func (m tableNameInputMatch) Matches(x interface{}) bool {
+func (m describeTableInputMatcher) Matches(x interface{}) bool {
 	if y, ok := x.(*dynamodb.DescribeTableInput); ok {
-		return m.x == *y.TableName
+		return reflect.DeepEqual(m.x, y)
 	}
 	return false
 }
 
-func (m tableNameInputMatch) String() string {
-	return m.x
+func (m describeTableInputMatcher) String() string {
+	return fmt.Sprintf("%v", m.x)
 }

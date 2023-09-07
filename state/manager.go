@@ -28,7 +28,7 @@ type StateManager interface {
 	// Initialize the state manager by establishing the connection with Dynamodb
 	// This function only needs to be called once for every object that implements
 	// StateManager. Further calls will have no effect
-	Initialize()
+	Initialize() error
 
 	// Save a new state in storage
 	Save(resourceType string, resourceKey string, state []byte) error
@@ -103,7 +103,7 @@ type StateManagerImpl struct {
 	isInitialized bool
 }
 
-func (m *StateManagerImpl) Initialize() {
+func (m *StateManagerImpl) Initialize() error {
 	stateTableName := os.Getenv("AWS_FAIL_AZ_STATE_TABLE")
 	if stateTableName == "" {
 		log.Printf("AWS_FAIL_AZ_STATE_TABLE variable is not set. Using default %s", FALLBACK_STATE_TABLE_NAME)
@@ -114,29 +114,31 @@ func (m *StateManagerImpl) Initialize() {
 
 	exists, err := m.tableExists()
 	if err != nil {
-		log.Fatalf("An unknown error occurred: %v", err)
+		return fmt.Errorf("An unknown error occurred: %v", err)
 	}
 
 	if !exists {
 		log.Printf("State table with name %s not found. Creating...", stateTableName)
 		_, err := m.createTable()
 		if err != nil {
-			log.Fatalf("ERROR: creating state table in Dynamodb. %v", err)
+			return fmt.Errorf("ERROR: creating state table in Dynamodb. %v", err)
 		}
 		err = m.writeSchemaVersion()
 		if err != nil {
-			log.Fatalf("ERROR: populating state table version in Dynamodb. %v", err)
+			return fmt.Errorf("ERROR: populating state table version in Dynamodb. %v", err)
 		}
 	}
 
 	if m.Namespace == "" {
 		m.Namespace = "default"
 	}
-	m.isInitialized = true
 
 	if err := m.checkSchemaVersion(); err != nil {
-		log.Fatalf("ERROR: state table version check failed. %v", err)
+		return fmt.Errorf("ERROR: state table version check failed. %v", err)
 	}
+
+	m.isInitialized = true
+	return nil
 }
 
 func (m StateManagerImpl) Save(resourceType string, resourceKey string, state []byte) error {

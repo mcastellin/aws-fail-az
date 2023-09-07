@@ -25,7 +25,9 @@ func RecoverCommand(namespace string) {
 		Namespace: namespace,
 	}
 
-	stateManager.Initialize()
+	if err := stateManager.Initialize(); err != nil {
+		log.Fatalf(err.Error())
+	}
 
 	states, err := stateManager.QueryStates(&state.QueryStatesInput{})
 	if err != nil {
