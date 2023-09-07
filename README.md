@@ -156,6 +156,7 @@ Using the `tags` attribute will select all resource of the specified *type* wher
 |---------|-------------|
 | ecs-service           | cluster, service, tags |
 | auto-scaling-group    | name, tags |
+| elbv2-load-balancer   | name, tags |
 
 ### ECS Services
 
@@ -214,7 +215,26 @@ Select Auto Scaling Groups by name:
   "targets": [
     {
       "type": "auto-scaling-group",
-      "filter": "name=<ASG_name>"
+      "filter": "name=<ASG_NAME>"
+    },
+    ...
+  ]
+}
+```
+
+### Elastic Load Balancers
+
+Select Elastic Load Balancers by name:
+
+```json
+{
+  "azs": [
+    "us-east-1b"
+  ],
+  "targets": [
+    {
+      "type": "elbv2-load-balancer",
+      "filter": "name=<LB_NAME>"
     },
     ...
   ]
