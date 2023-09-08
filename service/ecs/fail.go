@@ -37,7 +37,7 @@ type ECSServiceState struct {
 	Subnets     []string `json:"subnets"`
 }
 
-func (svc ECSService) Check() (bool, error) {
+func (svc *ECSService) Check() (bool, error) {
 	isValid := true
 
 	log.Printf("%s cluster=%s,name=%s: checking resource state before failure simulation",
@@ -53,7 +53,7 @@ func (svc ECSService) Check() (bool, error) {
 	return isValid && result, nil
 }
 
-func (svc ECSService) Save(stateManager state.StateManager) error {
+func (svc *ECSService) Save(stateManager state.StateManager) error {
 	api := svc.Provider.NewEcsApi()
 
 	input := &ecs.DescribeServicesInput{
@@ -90,7 +90,7 @@ func (svc ECSService) Save(stateManager state.StateManager) error {
 	return nil
 }
 
-func (svc ECSService) Fail(azs []string) error {
+func (svc *ECSService) Fail(azs []string) error {
 	ec2Api := svc.Provider.NewEc2Api()
 	ecsApi := svc.Provider.NewEcsApi()
 
@@ -143,7 +143,7 @@ func (svc ECSService) Fail(azs []string) error {
 	return nil
 }
 
-func (svc ECSService) Restore() error {
+func (svc *ECSService) Restore() error {
 	log.Printf("%s cluster=%s,name=%s: restoring AZs for ecs-service",
 		RESOURCE_TYPE, svc.ClusterArn, svc.ServiceName)
 

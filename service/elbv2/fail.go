@@ -28,7 +28,7 @@ type LoadBalancer struct {
 	stateSubnets []string
 }
 
-func (lb LoadBalancer) Check() (bool, error) {
+func (lb *LoadBalancer) Check() (bool, error) {
 	log.Printf("%s name=%s: checking resource state before failure simulation",
 		RESOURCE_TYPE, lb.Name)
 
@@ -52,7 +52,7 @@ func (lb LoadBalancer) Check() (bool, error) {
 	return true, nil
 }
 
-func (lb LoadBalancer) Save(stateManager state.StateManager) error {
+func (lb *LoadBalancer) Save(stateManager state.StateManager) error {
 
 	api := lb.Provider.NewElbV2Api()
 
@@ -80,7 +80,7 @@ func (lb LoadBalancer) Save(stateManager state.StateManager) error {
 	return err
 }
 
-func (lb LoadBalancer) Fail(azs []string) error {
+func (lb *LoadBalancer) Fail(azs []string) error {
 
 	api := lb.Provider.NewElbV2Api()
 	ec2Api := lb.Provider.NewEc2Api()
@@ -115,7 +115,7 @@ func (lb LoadBalancer) Fail(azs []string) error {
 	return err
 }
 
-func (lb LoadBalancer) Restore() error {
+func (lb *LoadBalancer) Restore() error {
 
 	log.Printf("%s name=%s: restoring AZs for load-balancer", RESOURCE_TYPE, lb.Name)
 

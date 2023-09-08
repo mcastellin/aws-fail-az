@@ -32,10 +32,10 @@ func TestCheckFailNotEnoughSubnets(t *testing.T) {
 			}},
 		}, nil)
 
-	result, err := LoadBalancer{
+	result, err := (&LoadBalancer{
 		Provider: mockProvider,
 		Name:     "test-alb",
-	}.Check()
+	}).Check()
 
 	assert.NotNil(t, err)
 	assert.False(t, result)
@@ -60,10 +60,10 @@ func TestCheckPass(t *testing.T) {
 			}},
 		}, nil)
 
-	result, err := LoadBalancer{
+	result, err := (&LoadBalancer{
 		Provider: mockProvider,
 		Name:     "test-alb",
-	}.Check()
+	}).Check()
 
 	assert.Nil(t, err)
 	assert.True(t, result)
@@ -93,10 +93,10 @@ func TestDescribeLoadBalancerWithArn(t *testing.T) {
 			}},
 		}, nil)
 
-	result, err := LoadBalancer{
+	result, err := (&LoadBalancer{
 		Provider: mockProvider,
 		Name:     arn,
-	}.Check()
+	}).Check()
 
 	assert.Nil(t, err)
 	assert.True(t, result)
@@ -124,10 +124,10 @@ func TestDescribeLoadBalancerWithName(t *testing.T) {
 			}},
 		}, nil)
 
-	result, err := LoadBalancer{
+	result, err := (&LoadBalancer{
 		Provider: mockProvider,
 		Name:     "alb-name",
-	}.Check()
+	}).Check()
 
 	assert.Nil(t, err)
 	assert.True(t, result)

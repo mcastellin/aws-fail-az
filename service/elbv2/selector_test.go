@@ -92,9 +92,9 @@ func TestFilterLoadBalancersByTagsShouldMatchInAllPages(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Len(t, results, 3)
-	assert.Equal(t, arns[0], results[0].(LoadBalancer).Name)
-	assert.Equal(t, arns[1], results[1].(LoadBalancer).Name)
-	assert.Equal(t, arns[3], results[2].(LoadBalancer).Name)
+	assert.Equal(t, arns[0], results[0].(*LoadBalancer).Name)
+	assert.Equal(t, arns[1], results[1].(*LoadBalancer).Name)
+	assert.Equal(t, arns[3], results[2].(*LoadBalancer).Name)
 }
 
 func createDescribeLoadBalancersPager(ctrl *gomock.Controller, pages [][]types.LoadBalancer) *mock_awsapis.MockDescribeLoadBalancersPager {

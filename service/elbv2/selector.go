@@ -19,11 +19,12 @@ func RestoreFromState(stateData []byte, provider awsapis.AWSProvider) error {
 		return err
 	}
 
-	return LoadBalancer{
+	resource := LoadBalancer{
 		Provider:     provider,
 		Name:         state.LoadBalancerName,
 		stateSubnets: state.Subnets,
-	}.Restore()
+	}
+	return resource.Restore()
 }
 
 func NewFromConfig(selector domain.TargetSelector, provider awsapis.AWSProvider) ([]domain.ConsistentStateResource, error) {
@@ -58,7 +59,7 @@ func NewFromConfig(selector domain.TargetSelector, provider awsapis.AWSProvider)
 
 	objs := make([]domain.ConsistentStateResource, len(lbNames))
 	for idx := range lbNames {
-		objs[idx] = LoadBalancer{
+		objs[idx] = &LoadBalancer{
 			Provider: provider,
 			Name:     lbNames[idx],
 		}

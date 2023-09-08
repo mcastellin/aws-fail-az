@@ -31,7 +31,7 @@ type AutoScalingGroup struct {
 	stateSubnets []string
 }
 
-func (asg AutoScalingGroup) Check() (bool, error) {
+func (asg *AutoScalingGroup) Check() (bool, error) {
 	isValid := true
 
 	log.Printf("%s name=%s: checking resource state before failure simulation",
@@ -64,7 +64,7 @@ func (asg AutoScalingGroup) Check() (bool, error) {
 	return isValid, nil
 }
 
-func (asg AutoScalingGroup) Save(stateManager state.StateManager) error {
+func (asg *AutoScalingGroup) Save(stateManager state.StateManager) error {
 
 	api := asg.Provider.NewAutoScalingApi()
 
@@ -99,7 +99,7 @@ func (asg AutoScalingGroup) Save(stateManager state.StateManager) error {
 	return nil
 }
 
-func (asg AutoScalingGroup) Fail(azs []string) error {
+func (asg *AutoScalingGroup) Fail(azs []string) error {
 	ec2Api := asg.Provider.NewEc2Api()
 	api := asg.Provider.NewAutoScalingApi()
 
@@ -154,7 +154,7 @@ func (asg AutoScalingGroup) Fail(azs []string) error {
 
 	return nil
 }
-func (asg AutoScalingGroup) Restore() error {
+func (asg *AutoScalingGroup) Restore() error {
 	log.Printf("%s name=%s: restoring AZs for autoscaling group", RESOURCE_TYPE, asg.AutoScalingGroupName)
 
 	api := asg.Provider.NewAutoScalingApi()

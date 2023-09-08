@@ -78,7 +78,7 @@ func TestFilterServiceByTagsShouldMatch(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Len(t, results, 1)
-	assert.Equal(t, "test-service", results[0].(ECSService).ServiceName)
+	assert.Equal(t, "test-service", results[0].(*ECSService).ServiceName)
 
 }
 
@@ -113,9 +113,9 @@ func TestFilterServiceByTagsShouldMatchResultsFromAllPages(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Len(t, results, 3)
-	assert.Equal(t, "test-service", results[0].(ECSService).ServiceName)
-	assert.Equal(t, "test-service-2", results[1].(ECSService).ServiceName)
-	assert.Equal(t, "test-service-3", results[2].(ECSService).ServiceName)
+	assert.Equal(t, "test-service", results[0].(*ECSService).ServiceName)
+	assert.Equal(t, "test-service-2", results[1].(*ECSService).ServiceName)
+	assert.Equal(t, "test-service-3", results[2].(*ECSService).ServiceName)
 
 }
 
