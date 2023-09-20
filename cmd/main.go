@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/mcastellin/aws-fail-az/awsapis"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +39,12 @@ var failCmd = &cobra.Command{
 		if !stdin {
 			configFile = args[0]
 		}
+		provider, err := createProvider()
+		if err != nil {
+			return err
+		}
 		op := &FailCommand{
+			Provider:      provider,
 			Namespace:     namespace,
 			ReadFromStdin: stdin,
 			ConfigFile:    configFile,
@@ -49,7 +57,11 @@ var recoverCmd = &cobra.Command{
 	Use:   "recover",
 	Short: "Recover from AZ failure and restore saved resources state",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		op := RecoverCommand{Namespace: namespace}
+		provider, err := createProvider()
+		if err != nil {
+			return err
+		}
+		op := RecoverCommand{Provider: provider, Namespace: namespace}
 		return op.Run()
 	},
 }
@@ -62,7 +74,12 @@ var stateSaveCmd = &cobra.Command{
 			return fmt.Errorf("State files are not supported when reading from stdin. Found %d.", len(args))
 		}
 
-		op := SaveState{
+		provider, err := createProvider()
+		if err != nil {
+			return err
+		}
+		op := SaveStateCommand{
+			Provider:      provider,
 			Namespace:     namespace,
 			ResourceType:  resourceType,
 			ResourceKey:   resourceKey,
@@ -77,7 +94,12 @@ var stateReadCmd = &cobra.Command{
 	Use:   "state-read",
 	Short: "Read a state object from Dynamodb",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		op := ReadStates{
+		provider, err := createProvider()
+		if err != nil {
+			return err
+		}
+		op := ReadStatesCommand{
+			Provider:     provider,
 			Namespace:    namespace,
 			ResourceType: resourceType,
 			ResourceKey:  resourceKey,
@@ -90,7 +112,12 @@ var stateDeleteCmd = &cobra.Command{
 	Use:   "state-delete",
 	Short: "Delete a state object from Dynamodb",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		op := DeleteState{
+		provider, err := createProvider()
+		if err != nil {
+			return err
+		}
+		op := DeleteStateCommand{
+			Provider:     provider,
 			Namespace:    namespace,
 			ResourceType: resourceType,
 			ResourceKey:  resourceKey,
@@ -105,6 +132,15 @@ var versionCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Printf("aws-fail-az v%s\n", BuildVersion)
 	},
+}
+
+func createProvider() (awsapis.AWSProvider, error) {
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		return nil, fmt.Errorf("Failed to load AWS configuration: %v", err)
+	}
+
+	return awsapis.NewProviderFromConfig(&cfg), nil
 }
 
 func main() {

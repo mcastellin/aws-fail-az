@@ -1,14 +1,12 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"os"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/mcastellin/aws-fail-az/awsapis"
 	"github.com/mcastellin/aws-fail-az/state"
 )
@@ -20,7 +18,8 @@ type ReadStatesOutput struct {
 	State        string `json:"state"`
 }
 
-type SaveState struct {
+type SaveStateCommand struct {
+	Provider      awsapis.AWSProvider
 	Namespace     string
 	ResourceType  string
 	ResourceKey   string
@@ -28,7 +27,7 @@ type SaveState struct {
 	StateData     string
 }
 
-func (cmd *SaveState) Run() error {
+func (cmd *SaveStateCommand) Run() error {
 
 	var statePayload []byte
 	var err error
@@ -45,13 +44,7 @@ func (cmd *SaveState) Run() error {
 		return fmt.Errorf("No data was provided to store in state. Exiting.")
 	}
 
-	cfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		return fmt.Errorf("Failed to load AWS configuration: %v", err)
-	}
-	provider := awsapis.NewProviderFromConfig(&cfg)
-
-	stateManager, err := state.NewStateManager(provider, cmd.Namespace)
+	stateManager, err := state.NewStateManager(cmd.Provider, cmd.Namespace)
 	if err != nil {
 		log.Print("Failed to create AWS state manager")
 		return err
@@ -68,23 +61,18 @@ func (cmd *SaveState) Run() error {
 	return nil
 }
 
-type ReadStates struct {
+type ReadStatesCommand struct {
+	Provider     awsapis.AWSProvider
 	Namespace    string
 	ResourceType string
 	ResourceKey  string
 }
 
-func (cmd *ReadStates) Run() error {
+func (cmd *ReadStatesCommand) Run() error {
 	// Discard logging to facilitate output parsing
 	log.SetOutput(io.Discard)
 
-	cfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		return fmt.Errorf("Failed to load AWS configuration: %v", err)
-	}
-	provider := awsapis.NewProviderFromConfig(&cfg)
-
-	stateManager, err := state.NewStateManager(provider, cmd.Namespace)
+	stateManager, err := state.NewStateManager(cmd.Provider, cmd.Namespace)
 	if err != nil {
 		log.Print("Failed to create AWS state manager")
 		return err
@@ -126,20 +114,15 @@ func (cmd *ReadStates) Run() error {
 	return nil
 }
 
-type DeleteState struct {
+type DeleteStateCommand struct {
+	Provider     awsapis.AWSProvider
 	Namespace    string
 	ResourceType string
 	ResourceKey  string
 }
 
-func (cmd *DeleteState) Run() error {
-	cfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		return fmt.Errorf("Failed to load AWS configuration: %v", err)
-	}
-	provider := awsapis.NewProviderFromConfig(&cfg)
-
-	stateManager, err := state.NewStateManager(provider, cmd.Namespace)
+func (cmd *DeleteStateCommand) Run() error {
+	stateManager, err := state.NewStateManager(cmd.Provider, cmd.Namespace)
 	if err != nil {
 		log.Print("Failed to create AWS state manager")
 		return err

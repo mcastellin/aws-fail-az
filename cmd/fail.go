@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/mcastellin/aws-fail-az/awsapis"
 	"github.com/mcastellin/aws-fail-az/domain"
 	"github.com/mcastellin/aws-fail-az/service/asg"
@@ -20,6 +19,7 @@ import (
 )
 
 type FailCommand struct {
+	Provider      awsapis.AWSProvider
 	Namespace     string
 	ReadFromStdin bool
 	ConfigFile    string
@@ -49,13 +49,7 @@ func (cmd *FailCommand) Run() error {
 
 	log.Printf("Failing availability zones %s", faultConfig.Azs)
 
-	cfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		return fmt.Errorf("Failed to load AWS configuration: %v", err)
-	}
-
-	provider := awsapis.NewProviderFromConfig(&cfg)
-	stateManager, err := state.NewStateManager(provider, cmd.Namespace)
+	stateManager, err := state.NewStateManager(cmd.Provider, cmd.Namespace)
 	if err != nil {
 		log.Print("Failed to create AWS state manager")
 		return err
@@ -73,11 +67,11 @@ func (cmd *FailCommand) Run() error {
 
 		switch {
 		case target.Type == ecs.RESOURCE_TYPE:
-			targetConfigs, err = ecs.NewFromConfig(target, provider)
+			targetConfigs, err = ecs.NewFromConfig(target, cmd.Provider)
 		case target.Type == asg.RESOURCE_TYPE:
-			targetConfigs, err = asg.NewFromConfig(target, provider)
+			targetConfigs, err = asg.NewFromConfig(target, cmd.Provider)
 		case target.Type == elbv2.RESOURCE_TYPE:
-			targetConfigs, err = elbv2.NewFromConfig(target, provider)
+			targetConfigs, err = elbv2.NewFromConfig(target, cmd.Provider)
 		default:
 			err = fmt.Errorf("Could not recognize resource type %s", target.Type)
 		}
