@@ -1,6 +1,10 @@
-.PHONY: clean test lint build install mockgen
+.PHONY: tidy clean test lint build install mockgen
 
 BUILD_VERSION=dev-snapshot
+
+tidy:
+	@go mod tidy
+	@cd awsapis/ && go mod tidy
 
 clean:
 	@go clean -testcache
@@ -12,7 +16,7 @@ lint:
 	@golangci-lint run
 
 build: clean
-	go build -ldflags="-X main.BuildVersion=$(BUILD_VERSION)" -o bin/aws-fail-az cmd/*.go
+	go build -ldflags="-X main.BuildVersion=$(BUILD_VERSION)" -o bin/aws-fail-az main.go
 
 install: build
 	@mkdir -p ~/bin/
@@ -20,9 +24,11 @@ install: build
 	@chmod 700 ~/bin/aws-fail-az
 
 # Auto-generate AWS api mocks for unit testing
-# IMPORTANT!! Run this target every time you need to modify the `domain` package
+# IMPORTANT!! Run this target every time you need to modify the `awsapis` module
 mockgen: ./awsapis/*.go
 	@for file in $^; do \
 			echo Generating mocks for $$file; \
-			mockgen -source $$file -destination mock_awsapis/$$(basename $$file); \
+			mockgen -source $$file \
+				-package awsapis_mocks \
+				-destination awsapis_mocks/$$(basename $$file); \
 		done

@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
-	"github.com/mcastellin/aws-fail-az/mock_awsapis"
+	"github.com/mcastellin/aws-fail-az/awsapis_mocks"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -18,8 +18,8 @@ func TestCheckFailNotEnoughSubnets(t *testing.T) {
 	ctrl, _ := gomock.WithContext(context.Background(), t)
 	defer ctrl.Finish()
 
-	mockApi := mock_awsapis.NewMockElbV2Api(ctrl)
-	mockProvider := mock_awsapis.NewMockAWSProvider(ctrl)
+	mockApi := awsapis_mocks.NewMockElbV2Api(ctrl)
+	mockProvider := awsapis_mocks.NewMockAWSProvider(ctrl)
 	mockProvider.EXPECT().NewElbV2Api().AnyTimes().Return(mockApi)
 
 	mockApi.EXPECT().DescribeLoadBalancers(gomock.Any(), gomock.Any()).Times(1).
@@ -45,8 +45,8 @@ func TestCheckPass(t *testing.T) {
 	ctrl, _ := gomock.WithContext(context.Background(), t)
 	defer ctrl.Finish()
 
-	mockApi := mock_awsapis.NewMockElbV2Api(ctrl)
-	mockProvider := mock_awsapis.NewMockAWSProvider(ctrl)
+	mockApi := awsapis_mocks.NewMockElbV2Api(ctrl)
+	mockProvider := awsapis_mocks.NewMockAWSProvider(ctrl)
 	mockProvider.EXPECT().NewElbV2Api().AnyTimes().Return(mockApi)
 
 	mockApi.EXPECT().DescribeLoadBalancers(gomock.Any(), gomock.Any()).Times(1).
@@ -75,8 +75,8 @@ func TestDescribeLoadBalancerWithArn(t *testing.T) {
 
 	const arn string = "arn:aws:elasticloadbalancing:us-east-1:000000000000:loadbalancer/app/test-alb-1/xxxxxxxxxxxxxxx"
 
-	mockApi := mock_awsapis.NewMockElbV2Api(ctrl)
-	mockProvider := mock_awsapis.NewMockAWSProvider(ctrl)
+	mockApi := awsapis_mocks.NewMockElbV2Api(ctrl)
+	mockProvider := awsapis_mocks.NewMockAWSProvider(ctrl)
 	mockProvider.EXPECT().NewElbV2Api().AnyTimes().Return(mockApi)
 
 	matcher := describeLoadBalancersMatcher{&elasticloadbalancingv2.DescribeLoadBalancersInput{
@@ -106,8 +106,8 @@ func TestDescribeLoadBalancerWithName(t *testing.T) {
 	ctrl, _ := gomock.WithContext(context.Background(), t)
 	defer ctrl.Finish()
 
-	mockApi := mock_awsapis.NewMockElbV2Api(ctrl)
-	mockProvider := mock_awsapis.NewMockAWSProvider(ctrl)
+	mockApi := awsapis_mocks.NewMockElbV2Api(ctrl)
+	mockProvider := awsapis_mocks.NewMockAWSProvider(ctrl)
 	mockProvider.EXPECT().NewElbV2Api().AnyTimes().Return(mockApi)
 
 	matcher := describeLoadBalancersMatcher{&elasticloadbalancingv2.DescribeLoadBalancersInput{

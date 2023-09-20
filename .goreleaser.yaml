@@ -10,7 +10,7 @@ builds:
       - darwin
     ldflags:
       - "-X main.BuildVersion={{.Version}}"
-    dir: cmd/
+    dir: .
     binary: aws-fail-az
 
 archives:

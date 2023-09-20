@@ -7,8 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
+	"github.com/mcastellin/aws-fail-az/awsapis_mocks"
 	"github.com/mcastellin/aws-fail-az/domain"
-	"github.com/mcastellin/aws-fail-az/mock_awsapis"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -20,7 +20,7 @@ func TestFilterServiceByTagsShouldExcludeResults(t *testing.T) {
 	listClustersPager := createListClusterPager(ctrl, [][]string{{"test-cluster"}})
 	listServicesPager := createListServicesPager(ctrl, [][]string{{"test-service"}})
 
-	mockEcsAPI := mock_awsapis.NewMockEcsApi(ctrl)
+	mockEcsAPI := awsapis_mocks.NewMockEcsApi(ctrl)
 	mockEcsAPI.EXPECT().NewListClustersPaginator(gomock.Any()).Times(1).Return(listClustersPager)
 	mockEcsAPI.EXPECT().NewListServicesPaginator(gomock.Any()).Times(1).Return(listServicesPager)
 
@@ -31,7 +31,7 @@ func TestFilterServiceByTagsShouldExcludeResults(t *testing.T) {
 			}, nil
 		})
 
-	mockProvider := mock_awsapis.NewMockAWSProvider(ctrl)
+	mockProvider := awsapis_mocks.NewMockAWSProvider(ctrl)
 	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsAPI)
 	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsAPI)
 
@@ -54,7 +54,7 @@ func TestFilterServiceByTagsShouldMatch(t *testing.T) {
 	listClustersPager := createListClusterPager(ctrl, [][]string{{"test-cluster"}})
 	listServicesPager := createListServicesPager(ctrl, [][]string{{"test-service"}})
 
-	mockEcsAPI := mock_awsapis.NewMockEcsApi(ctrl)
+	mockEcsAPI := awsapis_mocks.NewMockEcsApi(ctrl)
 	mockEcsAPI.EXPECT().NewListClustersPaginator(gomock.Any()).Times(1).Return(listClustersPager)
 	mockEcsAPI.EXPECT().NewListServicesPaginator(gomock.Any()).Times(1).Return(listServicesPager)
 
@@ -65,7 +65,7 @@ func TestFilterServiceByTagsShouldMatch(t *testing.T) {
 			}, nil
 		})
 
-	mockProvider := mock_awsapis.NewMockAWSProvider(ctrl)
+	mockProvider := awsapis_mocks.NewMockAWSProvider(ctrl)
 	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsAPI)
 	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsAPI)
 
@@ -89,7 +89,7 @@ func TestFilterServiceByTagsShouldMatchResultsFromAllPages(t *testing.T) {
 	listClustersPager := createListClusterPager(ctrl, [][]string{{"test-cluster"}})
 	listServicesPager := createListServicesPager(ctrl, [][]string{{"test-service", "test-service-2"}, {"test-service-3"}})
 
-	mockEcsAPI := mock_awsapis.NewMockEcsApi(ctrl)
+	mockEcsAPI := awsapis_mocks.NewMockEcsApi(ctrl)
 	mockEcsAPI.EXPECT().NewListClustersPaginator(gomock.Any()).Times(1).Return(listClustersPager)
 	mockEcsAPI.EXPECT().NewListServicesPaginator(gomock.Any()).Times(1).Return(listServicesPager)
 
@@ -100,7 +100,7 @@ func TestFilterServiceByTagsShouldMatchResultsFromAllPages(t *testing.T) {
 			}, nil
 		})
 
-	mockProvider := mock_awsapis.NewMockAWSProvider(ctrl)
+	mockProvider := awsapis_mocks.NewMockAWSProvider(ctrl)
 	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsAPI)
 	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsAPI)
 
@@ -119,8 +119,8 @@ func TestFilterServiceByTagsShouldMatchResultsFromAllPages(t *testing.T) {
 
 }
 
-func createListClusterPager(ctrl *gomock.Controller, arnsPages [][]string) *mock_awsapis.MockListClustersPager {
-	mockListClusterPager := mock_awsapis.NewMockListClustersPager(ctrl)
+func createListClusterPager(ctrl *gomock.Controller, arnsPages [][]string) *awsapis_mocks.MockListClustersPager {
+	mockListClusterPager := awsapis_mocks.NewMockListClustersPager(ctrl)
 	gomock.InOrder(
 		mockListClusterPager.EXPECT().HasMorePages().Times(len(arnsPages)).Return(true),
 		mockListClusterPager.EXPECT().HasMorePages().Times(1).Return(false),
@@ -138,8 +138,8 @@ func createListClusterPager(ctrl *gomock.Controller, arnsPages [][]string) *mock
 	return mockListClusterPager
 }
 
-func createListServicesPager(ctrl *gomock.Controller, arnsPages [][]string) *mock_awsapis.MockListServicesPager {
-	mockListServicePager := mock_awsapis.NewMockListServicesPager(ctrl)
+func createListServicesPager(ctrl *gomock.Controller, arnsPages [][]string) *awsapis_mocks.MockListServicesPager {
+	mockListServicePager := awsapis_mocks.NewMockListServicesPager(ctrl)
 	gomock.InOrder(
 		mockListServicePager.EXPECT().HasMorePages().Times(len(arnsPages)).Return(true),
 		mockListServicePager.EXPECT().HasMorePages().Times(1).Return(false),

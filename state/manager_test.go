@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/mcastellin/aws-fail-az/mock_awsapis"
+	"github.com/mcastellin/aws-fail-az/awsapis_mocks"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -21,7 +21,7 @@ func TestStateInitializeNewTableWithOsVar(t *testing.T) {
 	ctrl, _ := gomock.WithContext(context.Background(), t)
 	defer ctrl.Finish()
 
-	mockApi := mock_awsapis.NewMockDynamodbApi(ctrl)
+	mockApi := awsapis_mocks.NewMockDynamodbApi(ctrl)
 
 	validVersion := ResourceState{
 		Namespace:    "_system",
@@ -57,7 +57,7 @@ func TestStateInitializeShouldFailWithWrongVersion(t *testing.T) {
 	ctrl, _ := gomock.WithContext(context.Background(), t)
 	defer ctrl.Finish()
 
-	mockApi := mock_awsapis.NewMockDynamodbApi(ctrl)
+	mockApi := awsapis_mocks.NewMockDynamodbApi(ctrl)
 
 	validVersion := ResourceState{
 		Namespace:    "_system",
@@ -90,8 +90,8 @@ func TestStateInitializeNewTable(t *testing.T) {
 	ctrl, _ := gomock.WithContext(context.Background(), t)
 	defer ctrl.Finish()
 
-	mockApi := mock_awsapis.NewMockDynamodbApi(ctrl)
-	mockWaiter := mock_awsapis.NewMockDynamodbTableExistsWaiter(ctrl)
+	mockApi := awsapis_mocks.NewMockDynamodbApi(ctrl)
+	mockWaiter := awsapis_mocks.NewMockDynamodbTableExistsWaiter(ctrl)
 
 	matcher := describeTableInputMatcher{&dynamodb.DescribeTableInput{
 		TableName: aws.String(FALLBACK_STATE_TABLE_NAME),
@@ -137,7 +137,7 @@ func TestStateInitializeNewTable(t *testing.T) {
 
 func TestSaveStateShouldNotOverrideExistingKeys(t *testing.T) {
 	ctrl, _ := gomock.WithContext(context.Background(), t)
-	mockApi := mock_awsapis.NewMockDynamodbApi(ctrl)
+	mockApi := awsapis_mocks.NewMockDynamodbApi(ctrl)
 
 	mockApi.EXPECT().GetItem(gomock.Any(), gomock.Any()).
 		Times(1).
