@@ -24,59 +24,63 @@ func SaveState(namespace string,
 	resourceType string,
 	resourceKey string,
 	readFromStdin bool,
-	stateData string) {
+	stateData string) error {
 
 	var statePayload []byte
 	var err error
 	if readFromStdin {
 		statePayload, err = io.ReadAll(os.Stdin)
 		if err != nil {
-			log.Panic(err)
+			return err
 		}
 	} else {
 		statePayload = []byte(stateData)
 	}
 
 	if len(statePayload) == 0 {
-		log.Fatal("No data was provided to store in state. Exiting.")
+		return fmt.Errorf("No data was provided to store in state. Exiting.")
 	}
 
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
-		log.Fatalf("Failed to load AWS configuration: %v", err)
+		return fmt.Errorf("Failed to load AWS configuration: %v", err)
 	}
 	provider := awsapis.NewProviderFromConfig(&cfg)
 
 	stateManager, err := state.NewStateManager(provider, namespace)
 	if err != nil {
-		log.Fatalf("Failed to create AWS state manager")
+		log.Print("Failed to create AWS state manager")
+		return err
 	}
 	if err := stateManager.Initialize(); err != nil {
-		log.Fatalf(err.Error())
+		return err
 	}
 
 	err = stateManager.Save(resourceType, resourceKey, statePayload)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+
+	return nil
 }
 
-func ReadStates(namespace string, resourceType string, resourceKey string) {
+func ReadStates(namespace string, resourceType string, resourceKey string) error {
 	// Discard logging to facilitate output parsing
 	log.SetOutput(io.Discard)
 
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
-		log.Fatalf("Failed to load AWS configuration: %v", err)
+		return fmt.Errorf("Failed to load AWS configuration: %v", err)
 	}
 	provider := awsapis.NewProviderFromConfig(&cfg)
 
 	stateManager, err := state.NewStateManager(provider, namespace)
 	if err != nil {
-		log.Fatalf("Failed to create AWS state manager")
+		log.Print("Failed to create AWS state manager")
+		return err
 	}
 	if err := stateManager.Initialize(); err != nil {
-		log.Fatalf(err.Error())
+		return err
 	}
 
 	states, err := stateManager.QueryStates(&state.QueryStatesInput{
@@ -108,31 +112,37 @@ func ReadStates(namespace string, resourceType string, resourceKey string) {
 	} else {
 		fmt.Println("[]")
 	}
+
+	return nil
 }
 
-func DeleteState(namespace string, resourceType string, resourceKey string) {
+func DeleteState(namespace string, resourceType string, resourceKey string) error {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
-		log.Fatalf("Failed to load AWS configuration: %v", err)
+		return fmt.Errorf("Failed to load AWS configuration: %v", err)
 	}
 	provider := awsapis.NewProviderFromConfig(&cfg)
 
 	stateManager, err := state.NewStateManager(provider, namespace)
 	if err != nil {
-		log.Fatalf("Failed to create AWS state manager")
+		log.Print("Failed to create AWS state manager")
+		return err
 	}
 	if err := stateManager.Initialize(); err != nil {
-		log.Fatalf(err.Error())
+		return err
 	}
 
 	result, err := stateManager.GetState(resourceType, resourceKey)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	err = stateManager.RemoveState(*result)
 	if err != nil {
-		log.Fatalf("Error removing state object with key %s", result.Key)
+		log.Print("Error removing state object with key %s", result.Key)
+		return err
 	}
 	log.Printf("State with key %s removed successfully", result.Key)
+
+	return nil
 }

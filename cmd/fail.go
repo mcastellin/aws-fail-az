@@ -19,43 +19,44 @@ import (
 	"github.com/mcastellin/aws-fail-az/state"
 )
 
-func FailCommand(namespace string, readFromStdin bool, configFile string) {
+func FailCommand(namespace string, readFromStdin bool, configFile string) error {
 
 	var configContent []byte
 	var err error
 	if readFromStdin {
 		configContent, err = io.ReadAll(os.Stdin)
 		if err != nil {
-			log.Panic(err)
+			return err
 		}
 	} else {
 		configContent, err = os.ReadFile(configFile)
 		if err != nil {
-			log.Panic(err)
+			return err
 		}
 	}
 
 	var faultConfig domain.FaultConfiguration
 	err = json.Unmarshal(configContent, &faultConfig)
 	if err != nil {
-		log.Panic(err)
+		return err
 	}
 
 	log.Printf("Failing availability zones %s", faultConfig.Azs)
 
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
-		log.Fatalf("Failed to load AWS configuration: %v", err)
+		return fmt.Errorf("Failed to load AWS configuration: %v", err)
 	}
 
 	provider := awsapis.NewProviderFromConfig(&cfg)
 	stateManager, err := state.NewStateManager(provider, namespace)
 	if err != nil {
-		log.Fatalf("Failed to create AWS state manager")
+		log.Print("Failed to create AWS state manager")
+		return err
 	}
 
 	if err := stateManager.Initialize(); err != nil {
-		log.Fatalf(err.Error())
+		return err
 	}
 
 	allServices := make([]domain.ConsistentStateResource, 0)
@@ -75,7 +76,7 @@ func FailCommand(namespace string, readFromStdin bool, configFile string) {
 			err = fmt.Errorf("Could not recognize resource type %s", target.Type)
 		}
 		if err != nil {
-			log.Panic(err)
+			return err
 		}
 		allServices = append(allServices, targetConfigs...)
 
@@ -87,15 +88,14 @@ func FailCommand(namespace string, readFromStdin bool, configFile string) {
 
 	err = checkResourceStates(ctx, allServices)
 	if err != nil {
-		log.Println(err)
-		log.Fatal("Exiting.")
+		return err
 	}
 
 	log.Println("INFO: Saving resources' states in state table.")
 	for _, svc := range allServices {
 		err = svc.Save(stateManager)
 		if err != nil {
-			log.Panic(err)
+			return err
 		}
 	}
 
@@ -103,9 +103,11 @@ func FailCommand(namespace string, readFromStdin bool, configFile string) {
 	for _, svc := range allServices {
 		err = svc.Fail(faultConfig.Azs)
 		if err != nil {
-			log.Panic(err)
+			return err
 		}
 	}
+
+	return nil
 }
 
 func checkResourceStates(ctx context.Context, resources []domain.ConsistentStateResource) error {

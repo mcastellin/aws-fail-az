@@ -13,25 +13,26 @@ import (
 	"github.com/mcastellin/aws-fail-az/state"
 )
 
-func RecoverCommand(namespace string) {
+func RecoverCommand(namespace string) error {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
-		log.Fatalf("Failed to load AWS configuration: %v", err)
+		return fmt.Errorf("Failed to load AWS configuration: %v", err)
 	}
 	provider := awsapis.NewProviderFromConfig(&cfg)
 
 	stateManager, err := state.NewStateManager(provider, namespace)
 	if err != nil {
-		log.Fatalf("Failed to create AWS state manager")
+		log.Print("Failed to create AWS state manager")
+		return err
 	}
 
 	if err := stateManager.Initialize(); err != nil {
-		log.Fatalf(err.Error())
+		return err
 	}
 
 	states, err := stateManager.QueryStates(&state.QueryStatesInput{})
 	if err != nil {
-		log.Panic(err)
+		return err
 	}
 	for _, s := range states {
 		switch s.ResourceType {
@@ -57,4 +58,6 @@ func RecoverCommand(namespace string) {
 			}
 		}
 	}
+
+	return nil
 }
