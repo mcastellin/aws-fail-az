@@ -13,14 +13,18 @@ import (
 	"github.com/mcastellin/aws-fail-az/state"
 )
 
-func RecoverCommand(namespace string) error {
+type RecoverCommand struct {
+	Namespace string
+}
+
+func (cmd *RecoverCommand) Run() error {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		return fmt.Errorf("Failed to load AWS configuration: %v", err)
 	}
 	provider := awsapis.NewProviderFromConfig(&cfg)
 
-	stateManager, err := state.NewStateManager(provider, namespace)
+	stateManager, err := state.NewStateManager(provider, cmd.Namespace)
 	if err != nil {
 		log.Print("Failed to create AWS state manager")
 		return err

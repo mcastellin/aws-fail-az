@@ -20,21 +20,25 @@ type ReadStatesOutput struct {
 	State        string `json:"state"`
 }
 
-func SaveState(namespace string,
-	resourceType string,
-	resourceKey string,
-	readFromStdin bool,
-	stateData string) error {
+type SaveState struct {
+	Namespace     string
+	ResourceType  string
+	ResourceKey   string
+	ReadFromStdin bool
+	StateData     string
+}
+
+func (cmd *SaveState) Run() error {
 
 	var statePayload []byte
 	var err error
-	if readFromStdin {
+	if cmd.ReadFromStdin {
 		statePayload, err = io.ReadAll(os.Stdin)
 		if err != nil {
 			return err
 		}
 	} else {
-		statePayload = []byte(stateData)
+		statePayload = []byte(cmd.StateData)
 	}
 
 	if len(statePayload) == 0 {
@@ -47,7 +51,7 @@ func SaveState(namespace string,
 	}
 	provider := awsapis.NewProviderFromConfig(&cfg)
 
-	stateManager, err := state.NewStateManager(provider, namespace)
+	stateManager, err := state.NewStateManager(provider, cmd.Namespace)
 	if err != nil {
 		log.Print("Failed to create AWS state manager")
 		return err
@@ -56,7 +60,7 @@ func SaveState(namespace string,
 		return err
 	}
 
-	err = stateManager.Save(resourceType, resourceKey, statePayload)
+	err = stateManager.Save(cmd.ResourceType, cmd.ResourceKey, statePayload)
 	if err != nil {
 		return err
 	}
@@ -64,7 +68,13 @@ func SaveState(namespace string,
 	return nil
 }
 
-func ReadStates(namespace string, resourceType string, resourceKey string) error {
+type ReadStates struct {
+	Namespace    string
+	ResourceType string
+	ResourceKey  string
+}
+
+func (cmd *ReadStates) Run() error {
 	// Discard logging to facilitate output parsing
 	log.SetOutput(io.Discard)
 
@@ -74,7 +84,7 @@ func ReadStates(namespace string, resourceType string, resourceKey string) error
 	}
 	provider := awsapis.NewProviderFromConfig(&cfg)
 
-	stateManager, err := state.NewStateManager(provider, namespace)
+	stateManager, err := state.NewStateManager(provider, cmd.Namespace)
 	if err != nil {
 		log.Print("Failed to create AWS state manager")
 		return err
@@ -84,12 +94,11 @@ func ReadStates(namespace string, resourceType string, resourceKey string) error
 	}
 
 	states, err := stateManager.QueryStates(&state.QueryStatesInput{
-		ResourceType: resourceType,
-		ResourceKey:  resourceKey,
+		ResourceType: cmd.ResourceType,
+		ResourceKey:  cmd.ResourceKey,
 	})
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
 	stateData := []ReadStatesOutput{}
@@ -107,6 +116,7 @@ func ReadStates(namespace string, resourceType string, resourceKey string) error
 		stateJSON, err := json.Marshal(stateData)
 		if err != nil {
 			fmt.Println("Error unmarshalling state object. Exiting.")
+			return err
 		}
 		fmt.Println(string(stateJSON))
 	} else {
@@ -116,14 +126,20 @@ func ReadStates(namespace string, resourceType string, resourceKey string) error
 	return nil
 }
 
-func DeleteState(namespace string, resourceType string, resourceKey string) error {
+type DeleteState struct {
+	Namespace    string
+	ResourceType string
+	ResourceKey  string
+}
+
+func (cmd *DeleteState) Run() error {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		return fmt.Errorf("Failed to load AWS configuration: %v", err)
 	}
 	provider := awsapis.NewProviderFromConfig(&cfg)
 
-	stateManager, err := state.NewStateManager(provider, namespace)
+	stateManager, err := state.NewStateManager(provider, cmd.Namespace)
 	if err != nil {
 		log.Print("Failed to create AWS state manager")
 		return err
@@ -132,14 +148,14 @@ func DeleteState(namespace string, resourceType string, resourceKey string) erro
 		return err
 	}
 
-	result, err := stateManager.GetState(resourceType, resourceKey)
+	result, err := stateManager.GetState(cmd.ResourceType, cmd.ResourceKey)
 	if err != nil {
 		return err
 	}
 
 	err = stateManager.RemoveState(*result)
 	if err != nil {
-		log.Print("Error removing state object with key %s", result.Key)
+		log.Printf("Error removing state object with key %s", result.Key)
 		return err
 	}
 	log.Printf("State with key %s removed successfully", result.Key)

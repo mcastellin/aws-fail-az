@@ -9,6 +9,7 @@ import (
 
 // BuildVersion for this application
 var BuildVersion string
+
 var (
 	stdin             bool
 	namespace         string
@@ -35,7 +36,12 @@ var failCmd = &cobra.Command{
 		if !stdin {
 			configFile = args[0]
 		}
-		return FailCommand(namespace, stdin, configFile)
+		op := &FailCommand{
+			Namespace:     namespace,
+			ReadFromStdin: stdin,
+			ConfigFile:    configFile,
+		}
+		return op.Run()
 	},
 }
 
@@ -43,7 +49,8 @@ var recoverCmd = &cobra.Command{
 	Use:   "recover",
 	Short: "Recover from AZ failure and restore saved resources state",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return RecoverCommand(namespace)
+		op := RecoverCommand{Namespace: namespace}
+		return op.Run()
 	},
 }
 
@@ -54,7 +61,15 @@ var stateSaveCmd = &cobra.Command{
 		if stdin && len(resourceStateData) > 0 {
 			return fmt.Errorf("State files are not supported when reading from stdin. Found %d.", len(args))
 		}
-		return SaveState(namespace, resourceType, resourceKey, stdin, resourceStateData)
+
+		op := SaveState{
+			Namespace:     namespace,
+			ResourceType:  resourceType,
+			ResourceKey:   resourceKey,
+			ReadFromStdin: stdin,
+			StateData:     resourceStateData,
+		}
+		return op.Run()
 	},
 }
 
@@ -62,7 +77,12 @@ var stateReadCmd = &cobra.Command{
 	Use:   "state-read",
 	Short: "Read a state object from Dynamodb",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return ReadStates(namespace, resourceType, resourceKey)
+		op := ReadStates{
+			Namespace:    namespace,
+			ResourceType: resourceType,
+			ResourceKey:  resourceKey,
+		}
+		return op.Run()
 	},
 }
 
@@ -70,7 +90,12 @@ var stateDeleteCmd = &cobra.Command{
 	Use:   "state-delete",
 	Short: "Delete a state object from Dynamodb",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return DeleteState(namespace, resourceType, resourceKey)
+		op := DeleteState{
+			Namespace:    namespace,
+			ResourceType: resourceType,
+			ResourceKey:  resourceKey,
+		}
+		return op.Run()
 	},
 }
 

@@ -19,17 +19,23 @@ import (
 	"github.com/mcastellin/aws-fail-az/state"
 )
 
-func FailCommand(namespace string, readFromStdin bool, configFile string) error {
+type FailCommand struct {
+	Namespace     string
+	ReadFromStdin bool
+	ConfigFile    string
+}
+
+func (cmd *FailCommand) Run() error {
 
 	var configContent []byte
 	var err error
-	if readFromStdin {
+	if cmd.ReadFromStdin {
 		configContent, err = io.ReadAll(os.Stdin)
 		if err != nil {
 			return err
 		}
 	} else {
-		configContent, err = os.ReadFile(configFile)
+		configContent, err = os.ReadFile(cmd.ConfigFile)
 		if err != nil {
 			return err
 		}
@@ -49,7 +55,7 @@ func FailCommand(namespace string, readFromStdin bool, configFile string) error 
 	}
 
 	provider := awsapis.NewProviderFromConfig(&cfg)
-	stateManager, err := state.NewStateManager(provider, namespace)
+	stateManager, err := state.NewStateManager(provider, cmd.Namespace)
 	if err != nil {
 		log.Print("Failed to create AWS state manager")
 		return err
