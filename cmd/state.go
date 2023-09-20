@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"os"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/mcastellin/aws-fail-az/awsapis"
 	"github.com/mcastellin/aws-fail-az/state"
 )
 
@@ -38,7 +41,16 @@ func SaveState(namespace string,
 		log.Fatal("No data was provided to store in state. Exiting.")
 	}
 
-	stateManager := getManager(namespace)
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		log.Fatalf("Failed to load AWS configuration: %v", err)
+	}
+	provider := awsapis.NewProviderFromConfig(&cfg)
+
+	stateManager, err := state.NewStateManager(provider, namespace)
+	if err != nil {
+		log.Fatalf("Failed to create AWS state manager")
+	}
 	if err := stateManager.Initialize(); err != nil {
 		log.Fatalf(err.Error())
 	}
@@ -50,11 +62,19 @@ func SaveState(namespace string,
 }
 
 func ReadStates(namespace string, resourceType string, resourceKey string) {
-
 	// Discard logging to facilitate output parsing
 	log.SetOutput(io.Discard)
 
-	stateManager := getManager(namespace)
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		log.Fatalf("Failed to load AWS configuration: %v", err)
+	}
+	provider := awsapis.NewProviderFromConfig(&cfg)
+
+	stateManager, err := state.NewStateManager(provider, namespace)
+	if err != nil {
+		log.Fatalf("Failed to create AWS state manager")
+	}
 	if err := stateManager.Initialize(); err != nil {
 		log.Fatalf(err.Error())
 	}
@@ -91,8 +111,16 @@ func ReadStates(namespace string, resourceType string, resourceKey string) {
 }
 
 func DeleteState(namespace string, resourceType string, resourceKey string) {
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		log.Fatalf("Failed to load AWS configuration: %v", err)
+	}
+	provider := awsapis.NewProviderFromConfig(&cfg)
 
-	stateManager := getManager(namespace)
+	stateManager, err := state.NewStateManager(provider, namespace)
+	if err != nil {
+		log.Fatalf("Failed to create AWS state manager")
+	}
 	if err := stateManager.Initialize(); err != nil {
 		log.Fatalf(err.Error())
 	}

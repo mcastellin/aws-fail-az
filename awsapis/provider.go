@@ -11,7 +11,7 @@ import (
 
 // Creates a new provider from AWS configuration
 func NewProviderFromConfig(cfg *aws.Config) AWSProvider {
-	return AWSProviderImpl{
+	return awsProviderImpl{
 		awsConfig: cfg,
 	}
 }
@@ -24,35 +24,35 @@ type AWSProvider interface {
 	NewElbV2Api() ElbV2Api
 }
 
-type AWSProviderImpl struct {
+type awsProviderImpl struct {
 	awsConfig *aws.Config
 }
 
-func (p AWSProviderImpl) NewDynamodbApi() DynamodbApi {
+func (p awsProviderImpl) NewDynamodbApi() DynamodbApi {
 	return &AwsDynamodbApi{
 		client: dynamodb.NewFromConfig(*p.awsConfig),
 	}
 }
 
-func (p AWSProviderImpl) NewEc2Api() Ec2Api {
+func (p awsProviderImpl) NewEc2Api() Ec2Api {
 	return &AwsEc2Api{
 		client: ec2.NewFromConfig(*p.awsConfig),
 	}
 }
 
-func (p AWSProviderImpl) NewEcsApi() EcsApi {
+func (p awsProviderImpl) NewEcsApi() EcsApi {
 	return &AwsEcsApi{
 		client: ecs.NewFromConfig(*p.awsConfig),
 	}
 }
 
-func (p AWSProviderImpl) NewAutoScalingApi() AutoScalingApi {
+func (p awsProviderImpl) NewAutoScalingApi() AutoScalingApi {
 	return &AwsAutoScalingApi{
 		client: autoscaling.NewFromConfig(*p.awsConfig),
 	}
 }
 
-func (p AWSProviderImpl) NewElbV2Api() ElbV2Api {
+func (p awsProviderImpl) NewElbV2Api() ElbV2Api {
 	return &AwsElbV2Api{
 		client: elasticloadbalancingv2.NewFromConfig(*p.awsConfig),
 	}

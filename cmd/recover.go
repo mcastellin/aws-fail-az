@@ -20,9 +20,9 @@ func RecoverCommand(namespace string) {
 	}
 	provider := awsapis.NewProviderFromConfig(&cfg)
 
-	stateManager := &state.StateManagerImpl{
-		Api:       provider.NewDynamodbApi(),
-		Namespace: namespace,
+	stateManager, err := state.NewStateManager(provider, namespace)
+	if err != nil {
+		log.Fatalf("Failed to create AWS state manager")
 	}
 
 	if err := stateManager.Initialize(); err != nil {

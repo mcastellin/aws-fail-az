@@ -43,7 +43,7 @@ func TestStateInitializeNewTableWithOsVar(t *testing.T) {
 		Times(1).
 		Return(&dynamodb.DescribeTableOutput{}, nil)
 
-	mgr := StateManagerImpl{
+	mgr := stateManagerImpl{
 		Api: mockApi,
 	}
 
@@ -76,7 +76,7 @@ func TestStateInitializeShouldFailWithWrongVersion(t *testing.T) {
 		Times(1).
 		Return(&dynamodb.DescribeTableOutput{}, nil)
 
-	mgr := StateManagerImpl{
+	mgr := stateManagerImpl{
 		Api: mockApi,
 	}
 
@@ -128,7 +128,7 @@ func TestStateInitializeNewTable(t *testing.T) {
 	mockApi.EXPECT().CreateTable(gomock.Any(), gomock.Any()).
 		Times(1)
 
-	mgr := StateManagerImpl{Api: mockApi}
+	mgr := stateManagerImpl{Api: mockApi}
 
 	err = mgr.Initialize()
 
@@ -148,7 +148,7 @@ func TestSaveStateShouldNotOverrideExistingKeys(t *testing.T) {
 			return &dynamodb.GetItemOutput{Item: item}, nil
 		})
 
-	mgr := StateManagerImpl{Api: mockApi}
+	mgr := stateManagerImpl{Api: mockApi}
 	mgr.isInitialized = true
 
 	err := mgr.Save("type", "key", []byte("payload"))

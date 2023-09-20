@@ -22,6 +22,13 @@ const STATE_TABLE_SCHEMA_VERSION string = "2023-09-06"
 // The default table name to store resource states
 const FALLBACK_STATE_TABLE_NAME string = "aws-fail-az-state-table"
 
+func NewStateManager(provider awsapis.AWSProvider, namespace string) (StateManager, error) {
+	return &stateManagerImpl{
+		Api:       provider.NewDynamodbApi(),
+		Namespace: namespace,
+	}, nil
+}
+
 // StateManager provides the API to manage resource states in Dynamodb
 type StateManager interface {
 
@@ -96,14 +103,14 @@ func (state ResourceState) GetKey() map[string]types.AttributeValue {
 }
 
 // A State Manager object to interact with resource state storage
-type StateManagerImpl struct {
+type stateManagerImpl struct {
 	Api           awsapis.DynamodbApi
 	TableName     string
 	Namespace     string
 	isInitialized bool
 }
 
-func (m *StateManagerImpl) Initialize() error {
+func (m *stateManagerImpl) Initialize() error {
 	stateTableName := os.Getenv("AWS_FAIL_AZ_STATE_TABLE")
 	if stateTableName == "" {
 		log.Printf("AWS_FAIL_AZ_STATE_TABLE variable is not set. Using default %s", FALLBACK_STATE_TABLE_NAME)
@@ -141,7 +148,7 @@ func (m *StateManagerImpl) Initialize() error {
 	return nil
 }
 
-func (m *StateManagerImpl) Save(resourceType string, resourceKey string, state []byte) error {
+func (m *stateManagerImpl) Save(resourceType string, resourceKey string, state []byte) error {
 	if err := m.checkInitialized(); err != nil {
 		return err
 	}
@@ -180,7 +187,7 @@ func (m *StateManagerImpl) Save(resourceType string, resourceKey string, state [
 	return err
 }
 
-func (m *StateManagerImpl) GetState(resourceType string, resourceKey string) (*ResourceState, error) {
+func (m *stateManagerImpl) GetState(resourceType string, resourceKey string) (*ResourceState, error) {
 	if err := m.checkInitialized(); err != nil {
 		return nil, err
 	}
@@ -213,7 +220,7 @@ func (m *StateManagerImpl) GetState(resourceType string, resourceKey string) (*R
 	return &out, nil
 }
 
-func (m *StateManagerImpl) QueryStates(params *QueryStatesInput) ([]ResourceState, error) {
+func (m *stateManagerImpl) QueryStates(params *QueryStatesInput) ([]ResourceState, error) {
 	if err := m.checkInitialized(); err != nil {
 		return nil, err
 	}
@@ -259,7 +266,7 @@ func (m *StateManagerImpl) QueryStates(params *QueryStatesInput) ([]ResourceStat
 	return resourceStates, nil
 }
 
-func (m *StateManagerImpl) RemoveState(stateObj ResourceState) error {
+func (m *stateManagerImpl) RemoveState(stateObj ResourceState) error {
 	if err := m.checkInitialized(); err != nil {
 		return err
 	}
@@ -276,7 +283,7 @@ func (m *StateManagerImpl) RemoveState(stateObj ResourceState) error {
 	return nil
 }
 
-func (m *StateManagerImpl) checkInitialized() error {
+func (m *stateManagerImpl) checkInitialized() error {
 	if !m.isInitialized {
 		return fmt.Errorf("State table has not been initialized. Call `manager.Initialize()`" +
 			" after a new stata manager is created.")
@@ -286,7 +293,7 @@ func (m *StateManagerImpl) checkInitialized() error {
 
 // Check if the state table already exists for the current AWS Account/Region
 // Returns: true if the table exists, false otherwise
-func (m *StateManagerImpl) tableExists() (bool, error) {
+func (m *stateManagerImpl) tableExists() (bool, error) {
 	input := &dynamodb.DescribeTableInput{
 		TableName: aws.String(m.TableName),
 	}
@@ -304,7 +311,7 @@ func (m *StateManagerImpl) tableExists() (bool, error) {
 
 // Creates the resource state table in Dynamodb for the current AWS Account/Region
 // and wait for table creationg before returning
-func (m *StateManagerImpl) createTable() (*dynamodb.CreateTableOutput, error) {
+func (m *stateManagerImpl) createTable() (*dynamodb.CreateTableOutput, error) {
 	input := &dynamodb.CreateTableInput{
 		TableName: aws.String(m.TableName),
 		KeySchema: []types.KeySchemaElement{
@@ -371,7 +378,7 @@ func (m *StateManagerImpl) createTable() (*dynamodb.CreateTableOutput, error) {
 }
 
 // Writes the current schema version into the state table
-func (m *StateManagerImpl) writeSchemaVersion() error {
+func (m *stateManagerImpl) writeSchemaVersion() error {
 	versionObj := ResourceState{
 		Namespace:    "_system",
 		Key:          "/schema/version",
@@ -404,7 +411,7 @@ func (m *StateManagerImpl) writeSchemaVersion() error {
 }
 
 // Checks the state table version is the same as the required version
-func (m *StateManagerImpl) checkSchemaVersion() error {
+func (m *stateManagerImpl) checkSchemaVersion() error {
 	versionObj := ResourceState{
 		Namespace: "_system",
 		Key:       "/schema/version",
@@ -437,6 +444,6 @@ func (m *StateManagerImpl) checkSchemaVersion() error {
 }
 
 // Formats the full key attribute of the resource state object
-func (m *StateManagerImpl) formatStateKey(resourceType string, resourceKey string) string {
+func (m *stateManagerImpl) formatStateKey(resourceType string, resourceKey string) string {
 	return fmt.Sprintf("/%s/%s/%s", m.Namespace, resourceType, resourceKey)
 }
