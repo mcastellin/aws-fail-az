@@ -1,4 +1,4 @@
-.PHONY: tidy clean test lint build install mockgen
+.PHONY: tidy clean test lint build install mockgen release-local
 
 BUILD_VERSION=dev-snapshot
 
@@ -32,3 +32,5 @@ mockgen: ./awsapis/*.go
 				-package awsapis_mocks \
 				-destination awsapis_mocks/$$(basename $$file); \
 		done
+release-local:
+	@goreleaser release --snapshot --clean
