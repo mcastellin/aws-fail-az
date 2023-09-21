@@ -99,7 +99,7 @@ func createDescribeAsgPaginator(ctrl *gomock.Controller, pages [][]types.AutoSca
 		mockPager.EXPECT().HasMorePages().Times(len(pages)).Return(true),
 		mockPager.EXPECT().HasMorePages().Times(1).Return(false),
 	)
-	calls := []*gomock.Call{}
+	calls := []any{}
 	for idx := range pages {
 		c := mockPager.EXPECT().NextPage(gomock.Any()).Times(1).Return(
 			&autoscaling.DescribeAutoScalingGroupsOutput{

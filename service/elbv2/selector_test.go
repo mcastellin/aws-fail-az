@@ -105,7 +105,7 @@ func createDescribeLoadBalancersPager(ctrl *gomock.Controller, pages [][]types.L
 		pager.EXPECT().HasMorePages().Times(1).Return(false),
 	)
 
-	calls := make([]*gomock.Call, len(pages))
+	calls := make([]any, len(pages))
 	for idx := range pages {
 		calls[idx] = pager.EXPECT().NextPage(gomock.Any()).Times(1).
 			Return(&elasticloadbalancingv2.DescribeLoadBalancersOutput{

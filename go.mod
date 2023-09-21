@@ -13,9 +13,10 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ecs v1.30.1
 	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.21.4
 	github.com/mcastellin/aws-fail-az/awsapis v0.0.0-00010101000000-000000000000
+	github.com/mcastellin/aws-fail-az/awsapis_mocks v0.0.0-00010101000000-000000000000
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.4
-	go.uber.org/mock v0.2.0
+	go.uber.org/mock v0.3.0
 	golang.org/x/exp v0.0.0-20230811145659-89c5cff77bcb
 )
 
@@ -42,3 +43,5 @@ require (
 )
 
 replace github.com/mcastellin/aws-fail-az/awsapis => ./awsapis
+
+replace github.com/mcastellin/aws-fail-az/awsapis_mocks => ./awsapis_mocks

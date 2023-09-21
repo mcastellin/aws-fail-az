@@ -5,6 +5,7 @@ BUILD_VERSION=dev-snapshot
 tidy:
 	@go mod tidy
 	@cd awsapis/ && go mod tidy
+	@cd awsapis_mocks/ && go mod tidy
 
 clean:
 	@go clean -testcache
@@ -32,5 +33,7 @@ mockgen: ./awsapis/*.go
 				-package awsapis_mocks \
 				-destination awsapis_mocks/$$(basename $$file); \
 		done
+	@cd awsapis_mocks/ && go mod tidy
+
 release-local:
 	@goreleaser release --snapshot --clean

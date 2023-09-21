@@ -125,7 +125,7 @@ func createListClusterPager(ctrl *gomock.Controller, arnsPages [][]string) *awsa
 		mockListClusterPager.EXPECT().HasMorePages().Times(len(arnsPages)).Return(true),
 		mockListClusterPager.EXPECT().HasMorePages().Times(1).Return(false),
 	)
-	calls := []*gomock.Call{}
+	calls := []any{}
 	for idx := range arnsPages {
 		c := mockListClusterPager.EXPECT().NextPage(gomock.Any()).Times(1).
 			Return(&ecs.ListClustersOutput{
@@ -144,7 +144,7 @@ func createListServicesPager(ctrl *gomock.Controller, arnsPages [][]string) *aws
 		mockListServicePager.EXPECT().HasMorePages().Times(len(arnsPages)).Return(true),
 		mockListServicePager.EXPECT().HasMorePages().Times(1).Return(false),
 	)
-	calls := []*gomock.Call{}
+	calls := []any{}
 	for idx := range arnsPages {
 		c := mockListServicePager.EXPECT().NextPage(gomock.Any()).Times(1).
 			Return(&ecs.ListServicesOutput{
