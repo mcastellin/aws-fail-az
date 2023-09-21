@@ -1,11 +1,9 @@
-package main
+package cmd
 
 import (
-	"context"
 	"fmt"
 	"log"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/mcastellin/aws-fail-az/awsapis"
 	"github.com/mcastellin/aws-fail-az/service/asg"
 	"github.com/mcastellin/aws-fail-az/service/ecs"
@@ -13,34 +11,34 @@ import (
 	"github.com/mcastellin/aws-fail-az/state"
 )
 
-func RecoverCommand(namespace string) {
-	cfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		log.Fatalf("Failed to load AWS configuration: %v", err)
-	}
-	provider := awsapis.NewProviderFromConfig(&cfg)
+type RecoverCommand struct {
+	Provider  awsapis.AWSProvider
+	Namespace string
+}
 
-	stateManager := &state.StateManagerImpl{
-		Api:       provider.NewDynamodbApi(),
-		Namespace: namespace,
+func (cmd *RecoverCommand) Run() error {
+	stateManager, err := state.NewStateManager(cmd.Provider, cmd.Namespace)
+	if err != nil {
+		log.Print("Failed to create AWS state manager")
+		return err
 	}
 
 	if err := stateManager.Initialize(); err != nil {
-		log.Fatalf(err.Error())
+		return err
 	}
 
 	states, err := stateManager.QueryStates(&state.QueryStatesInput{})
 	if err != nil {
-		log.Panic(err)
+		return err
 	}
 	for _, s := range states {
 		switch s.ResourceType {
 		case ecs.RESOURCE_TYPE:
-			err = ecs.RestoreFromState(s.State, provider)
+			err = ecs.RestoreFromState(s.State, cmd.Provider)
 		case asg.RESOURCE_TYPE:
-			err = asg.RestoreFromState(s.State, provider)
+			err = asg.RestoreFromState(s.State, cmd.Provider)
 		case elbv2.RESOURCE_TYPE:
-			err = elbv2.RestoreFromState(s.State, provider)
+			err = elbv2.RestoreFromState(s.State, cmd.Provider)
 		default:
 			err = fmt.Errorf("unknown resource of type %s found in state with key %s. Object will be ignored",
 				s.ResourceType,
@@ -57,4 +55,6 @@ func RecoverCommand(namespace string) {
 			}
 		}
 	}
+
+	return nil
 }

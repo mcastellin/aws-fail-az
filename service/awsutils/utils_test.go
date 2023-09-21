@@ -7,7 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/mcastellin/aws-fail-az/mock_awsapis"
+	"github.com/mcastellin/aws-fail-az/awsapis_mocks"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -16,7 +16,7 @@ func TestFilterSubnetsNotInAzs(t *testing.T) {
 
 	ctrl, _ := gomock.WithContext(context.Background(), t)
 	defer ctrl.Finish()
-	mockApi := mock_awsapis.NewMockEc2Api(ctrl)
+	mockApi := awsapis_mocks.NewMockEc2Api(ctrl)
 
 	mockApi.EXPECT().DescribeSubnets(gomock.Any(), gomock.Any(), gomock.Any()).
 		Times(1).

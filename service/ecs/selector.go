@@ -19,12 +19,13 @@ func RestoreFromState(stateData []byte, provider awsapis.AWSProvider) error {
 		return err
 	}
 
-	return ECSService{
+	resource := ECSService{
 		Provider:     provider,
 		ClusterArn:   state.ClusterArn,
 		ServiceName:  state.ServiceName,
 		stateSubnets: state.Subnets,
-	}.Restore()
+	}
+	return resource.Restore()
 }
 
 func NewFromConfig(selector domain.TargetSelector, provider awsapis.AWSProvider) ([]domain.ConsistentStateResource, error) {
@@ -47,7 +48,7 @@ func NewFromConfig(selector domain.TargetSelector, provider awsapis.AWSProvider)
 
 	if len(attributes) == 2 {
 		objs = []domain.ConsistentStateResource{
-			ECSService{
+			&ECSService{
 				Provider:    provider,
 				ClusterArn:  attributes["cluster"],
 				ServiceName: attributes["service"],
@@ -62,7 +63,7 @@ func NewFromConfig(selector domain.TargetSelector, provider awsapis.AWSProvider)
 
 		for cluster, services := range clusters {
 			for _, service := range services {
-				objs = append(objs, ECSService{
+				objs = append(objs, &ECSService{
 					Provider:    provider,
 					ClusterArn:  cluster,
 					ServiceName: service,

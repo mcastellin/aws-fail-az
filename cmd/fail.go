@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/mcastellin/aws-fail-az/awsapis"
 	"github.com/mcastellin/aws-fail-az/domain"
 	"github.com/mcastellin/aws-fail-az/service/asg"
@@ -19,44 +18,45 @@ import (
 	"github.com/mcastellin/aws-fail-az/state"
 )
 
-func FailCommand(namespace string, readFromStdin bool, configFile string) {
+type FailCommand struct {
+	Provider      awsapis.AWSProvider
+	Namespace     string
+	ReadFromStdin bool
+	ConfigFile    string
+}
+
+func (cmd *FailCommand) Run() error {
 
 	var configContent []byte
 	var err error
-	if readFromStdin {
+	if cmd.ReadFromStdin {
 		configContent, err = io.ReadAll(os.Stdin)
 		if err != nil {
-			log.Panic(err)
+			return err
 		}
 	} else {
-		configContent, err = os.ReadFile(configFile)
+		configContent, err = os.ReadFile(cmd.ConfigFile)
 		if err != nil {
-			log.Panic(err)
+			return err
 		}
 	}
 
 	var faultConfig domain.FaultConfiguration
 	err = json.Unmarshal(configContent, &faultConfig)
 	if err != nil {
-		log.Panic(err)
+		return err
 	}
 
 	log.Printf("Failing availability zones %s", faultConfig.Azs)
 
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+	stateManager, err := state.NewStateManager(cmd.Provider, cmd.Namespace)
 	if err != nil {
-		log.Fatalf("Failed to load AWS configuration: %v", err)
-	}
-
-	provider := awsapis.NewProviderFromConfig(&cfg)
-
-	stateManager := &state.StateManagerImpl{
-		Api:       provider.NewDynamodbApi(),
-		Namespace: namespace,
+		log.Print("Failed to create AWS state manager")
+		return err
 	}
 
 	if err := stateManager.Initialize(); err != nil {
-		log.Fatalf(err.Error())
+		return err
 	}
 
 	allServices := make([]domain.ConsistentStateResource, 0)
@@ -67,16 +67,16 @@ func FailCommand(namespace string, readFromStdin bool, configFile string) {
 
 		switch {
 		case target.Type == ecs.RESOURCE_TYPE:
-			targetConfigs, err = ecs.NewFromConfig(target, provider)
+			targetConfigs, err = ecs.NewFromConfig(target, cmd.Provider)
 		case target.Type == asg.RESOURCE_TYPE:
-			targetConfigs, err = asg.NewFromConfig(target, provider)
+			targetConfigs, err = asg.NewFromConfig(target, cmd.Provider)
 		case target.Type == elbv2.RESOURCE_TYPE:
-			targetConfigs, err = elbv2.NewFromConfig(target, provider)
+			targetConfigs, err = elbv2.NewFromConfig(target, cmd.Provider)
 		default:
 			err = fmt.Errorf("Could not recognize resource type %s", target.Type)
 		}
 		if err != nil {
-			log.Panic(err)
+			return err
 		}
 		allServices = append(allServices, targetConfigs...)
 
@@ -88,15 +88,14 @@ func FailCommand(namespace string, readFromStdin bool, configFile string) {
 
 	err = checkResourceStates(ctx, allServices)
 	if err != nil {
-		log.Println(err)
-		log.Fatal("Exiting.")
+		return err
 	}
 
 	log.Println("INFO: Saving resources' states in state table.")
 	for _, svc := range allServices {
 		err = svc.Save(stateManager)
 		if err != nil {
-			log.Panic(err)
+			return err
 		}
 	}
 
@@ -104,9 +103,11 @@ func FailCommand(namespace string, readFromStdin bool, configFile string) {
 	for _, svc := range allServices {
 		err = svc.Fail(faultConfig.Azs)
 		if err != nil {
-			log.Panic(err)
+			return err
 		}
 	}
+
+	return nil
 }
 
 func checkResourceStates(ctx context.Context, resources []domain.ConsistentStateResource) error {

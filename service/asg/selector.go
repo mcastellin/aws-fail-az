@@ -18,11 +18,12 @@ func RestoreFromState(stateData []byte, provider awsapis.AWSProvider) error {
 		return err
 	}
 
-	return AutoScalingGroup{
+	resource := AutoScalingGroup{
 		Provider:             provider,
 		AutoScalingGroupName: state.AutoScalingGroupName,
 		stateSubnets:         state.Subnets,
-	}.Restore()
+	}
+	return resource.Restore()
 }
 
 func NewFromConfig(selector domain.TargetSelector, provider awsapis.AWSProvider) ([]domain.ConsistentStateResource, error) {
@@ -58,7 +59,7 @@ func NewFromConfig(selector domain.TargetSelector, provider awsapis.AWSProvider)
 	objs := make([]domain.ConsistentStateResource, len(asgNames))
 
 	for idx := range asgNames {
-		objs[idx] = AutoScalingGroup{
+		objs[idx] = &AutoScalingGroup{
 			Provider:             provider,
 			AutoScalingGroupName: asgNames[idx],
 		}

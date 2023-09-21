@@ -7,8 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
+	"github.com/mcastellin/aws-fail-az/awsapis_mocks"
 	"github.com/mcastellin/aws-fail-az/domain"
-	"github.com/mcastellin/aws-fail-az/mock_awsapis"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -36,7 +36,7 @@ func TestFilterLoadBalancersByTagsShouldMatchInAllPages(t *testing.T) {
 	}
 	describeLoadBalancersPager := createDescribeLoadBalancersPager(ctrl, pages)
 
-	mockApi := mock_awsapis.NewMockElbV2Api(ctrl)
+	mockApi := awsapis_mocks.NewMockElbV2Api(ctrl)
 	mockApi.EXPECT().NewDescribeLoadBalancersPaginator(gomock.Any()).Times(1).Return(describeLoadBalancersPager)
 
 	gomock.InOrder(
@@ -81,7 +81,7 @@ func TestFilterLoadBalancersByTagsShouldMatchInAllPages(t *testing.T) {
 			}}, nil),
 	)
 
-	mockProvider := mock_awsapis.NewMockAWSProvider(ctrl)
+	mockProvider := awsapis_mocks.NewMockAWSProvider(ctrl)
 	mockProvider.EXPECT().NewElbV2Api().AnyTimes().Return(mockApi)
 
 	config := domain.TargetSelector{
@@ -92,20 +92,20 @@ func TestFilterLoadBalancersByTagsShouldMatchInAllPages(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Len(t, results, 3)
-	assert.Equal(t, arns[0], results[0].(LoadBalancer).Name)
-	assert.Equal(t, arns[1], results[1].(LoadBalancer).Name)
-	assert.Equal(t, arns[3], results[2].(LoadBalancer).Name)
+	assert.Equal(t, arns[0], results[0].(*LoadBalancer).Name)
+	assert.Equal(t, arns[1], results[1].(*LoadBalancer).Name)
+	assert.Equal(t, arns[3], results[2].(*LoadBalancer).Name)
 }
 
-func createDescribeLoadBalancersPager(ctrl *gomock.Controller, pages [][]types.LoadBalancer) *mock_awsapis.MockDescribeLoadBalancersPager {
-	pager := mock_awsapis.NewMockDescribeLoadBalancersPager(ctrl)
+func createDescribeLoadBalancersPager(ctrl *gomock.Controller, pages [][]types.LoadBalancer) *awsapis_mocks.MockDescribeLoadBalancersPager {
+	pager := awsapis_mocks.NewMockDescribeLoadBalancersPager(ctrl)
 
 	gomock.InOrder(
 		pager.EXPECT().HasMorePages().Times(len(pages)).Return(true),
 		pager.EXPECT().HasMorePages().Times(1).Return(false),
 	)
 
-	calls := make([]*gomock.Call, len(pages))
+	calls := make([]any, len(pages))
 	for idx := range pages {
 		calls[idx] = pager.EXPECT().NextPage(gomock.Any()).Times(1).
 			Return(&elasticloadbalancingv2.DescribeLoadBalancersOutput{

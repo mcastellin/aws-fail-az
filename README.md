@@ -9,16 +9,31 @@
 
 ## Installation
 
-**Linux / Windows / MacOs**
-
+#### Linux / MacOS / Windows
 Download one of the [pre-built binaries][releases].
+
+Example of **aws-fail-az** installation on **MacOS M1/M2**:
+```shell
+VERSION=0.0.7
+ARCH=arm64
+curl -sSL -o aws-fail-az-$VERSION.tar.gz \
+    https://github.com/mcastellin/aws-fail-az/releases/download/$VERSION/aws-fail-az_Darwin_$ARCH.tar.gz
+tar xf aws-fail-az-$VERSION.tar.gz aws-fail-az
+sudo mv ./aws-fail-az /usr/local/bin/
+```
+
+To verify the installation was successful run `aws-fail-az version` from your terminal window.
+
+> For older Macs with Intel chips replace the value for the **ARCH** variable with `ARCH=x86_64` in the command above.
+
+#### Dockerfile
 
 Example of **aws-fail-az** installation on a `debian:12` Docker container:
 
 ```Dockerfile
 FROM debian:12
 
-ARG VERSION=0.0.4
+ARG VERSION=0.0.7
 RUN apt-get update \
     && apt-get install -qqy curl \
     && rm -rf /var/lib/apt/lists \
@@ -95,8 +110,7 @@ The structure of the configuration file is as follows:
 {
   "azs": [
     "us-east-1a",
-    "us-east-1b",
-    ...
+    "us-east-1b"
   ],
   "targets": [
     {
@@ -110,8 +124,7 @@ The structure of the configuration file is as follows:
         {
           "Name": "Application",
           "Value": "<APPLICATION_NAME>"
-        },
-        ...
+        }
       ]
     }
   ]
@@ -171,8 +184,7 @@ Select ECS service by cluster and service name:
     {
       "type": "ecs-service",
       "filter": "cluster=<CLUSTER_NAME>;service=<SERVICE_NAME>"
-    },
-    ...
+    }
   ]
 }
 ```
@@ -197,8 +209,7 @@ Select ECS services by tags:
           "Value": "<APPLICATION_NAME>"
         }
       ]
-    },
-    ...
+    }
   ]
 }
 ```
@@ -216,8 +227,7 @@ Select Auto Scaling Groups by name:
     {
       "type": "auto-scaling-group",
       "filter": "name=<ASG_NAME>"
-    },
-    ...
+    }
   ]
 }
 ```
@@ -235,8 +245,7 @@ Select Elastic Load Balancers by name:
     {
       "type": "elbv2-load-balancer",
       "filter": "name=<LB_NAME>"
-    },
-    ...
+    }
   ]
 }
 ```

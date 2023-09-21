@@ -1,15 +1,22 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/mcastellin/aws-fail-az/awsapis"
+	"github.com/mcastellin/aws-fail-az/cmd"
 	"github.com/spf13/cobra"
 )
 
 // BuildVersion for this application
 var BuildVersion string
+
 var (
+	awsRegion         string
+	awsProfile        string
 	stdin             bool
 	namespace         string
 	resourceType      string
@@ -25,61 +32,122 @@ var rootCmd = &cobra.Command{
 var failCmd = &cobra.Command{
 	Use:   "fail [CONFIG_FILE]",
 	Short: "Start AZ failure injection based on the provided configuration from stdin",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if !stdin && len(args) != 1 {
-			log.Fatalf("Only one fault coniguration file should be provided. Found %d.", len(args))
+			return fmt.Errorf("Only one fault configuration file should be provided. Found %d.", len(args))
 		} else if stdin && len(args) > 0 {
-			log.Fatalf("Configuration files are not supported when reading from stdin. Found %d.", len(args))
+			return fmt.Errorf("Configuration files are not supported when reading from stdin. Found %d.", len(args))
 		}
 		configFile := ""
 		if !stdin {
 			configFile = args[0]
 		}
-		FailCommand(namespace, stdin, configFile)
+		provider, err := createProvider()
+		if err != nil {
+			return err
+		}
+		op := &cmd.FailCommand{
+			Provider:      provider,
+			Namespace:     namespace,
+			ReadFromStdin: stdin,
+			ConfigFile:    configFile,
+		}
+		return op.Run()
 	},
 }
 
 var recoverCmd = &cobra.Command{
 	Use:   "recover",
 	Short: "Recover from AZ failure and restore saved resources state",
-	Run: func(cmd *cobra.Command, args []string) {
-		RecoverCommand(namespace)
+	RunE: func(_ *cobra.Command, args []string) error {
+		provider, err := createProvider()
+		if err != nil {
+			return err
+		}
+		op := &cmd.RecoverCommand{Provider: provider, Namespace: namespace}
+		return op.Run()
 	},
 }
 
 var stateSaveCmd = &cobra.Command{
 	Use:   "state-save",
 	Short: "Store a state object in Dynamodb",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if stdin && len(resourceStateData) > 0 {
-			log.Fatalf("State files are not supported when reading from stdin. Found %d.", len(args))
+			return fmt.Errorf("State files are not supported when reading from stdin. Found %d.", len(args))
 		}
-		SaveState(namespace, resourceType, resourceKey, stdin, resourceStateData)
+
+		provider, err := createProvider()
+		if err != nil {
+			return err
+		}
+		op := &cmd.SaveStateCommand{
+			Provider:      provider,
+			Namespace:     namespace,
+			ResourceType:  resourceType,
+			ResourceKey:   resourceKey,
+			ReadFromStdin: stdin,
+			StateData:     resourceStateData,
+		}
+		return op.Run()
 	},
 }
 
 var stateReadCmd = &cobra.Command{
 	Use:   "state-read",
 	Short: "Read a state object from Dynamodb",
-	Run: func(cmd *cobra.Command, args []string) {
-		ReadStates(namespace, resourceType, resourceKey)
+	RunE: func(_ *cobra.Command, args []string) error {
+		provider, err := createProvider()
+		if err != nil {
+			return err
+		}
+		op := &cmd.ReadStatesCommand{
+			Provider:     provider,
+			Namespace:    namespace,
+			ResourceType: resourceType,
+			ResourceKey:  resourceKey,
+		}
+		return op.Run()
 	},
 }
 
 var stateDeleteCmd = &cobra.Command{
 	Use:   "state-delete",
 	Short: "Delete a state object from Dynamodb",
-	Run: func(cmd *cobra.Command, args []string) {
-		DeleteState(namespace, resourceType, resourceKey)
+	RunE: func(_ *cobra.Command, args []string) error {
+		provider, err := createProvider()
+		if err != nil {
+			return err
+		}
+		op := &cmd.DeleteStateCommand{
+			Provider:     provider,
+			Namespace:    namespace,
+			ResourceType: resourceType,
+			ResourceKey:  resourceKey,
+		}
+		return op.Run()
 	},
 }
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the command version",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, args []string) {
 		fmt.Printf("aws-fail-az v%s\n", BuildVersion)
 	},
+}
+
+func createProvider() (awsapis.AWSProvider, error) {
+	config.WithSharedConfigProfile("devlearnops")
+
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithSharedConfigProfile(awsProfile),
+		config.WithRegion(awsRegion))
+	if err != nil {
+		return nil, fmt.Errorf("Failed to load AWS configuration: %v", err)
+	}
+
+	return awsapis.NewProviderFromConfig(&cfg), nil
 }
 
 func main() {
@@ -107,12 +175,16 @@ func main() {
 	stateDeleteCmd.MarkFlagRequired("type")
 	stateDeleteCmd.MarkFlagRequired("key")
 
+	rootCmd.PersistentFlags().StringVar(&awsRegion, "region", "", "The AWS region")
+	rootCmd.PersistentFlags().StringVar(&awsProfile, "profile", "", "The AWS profile")
 	rootCmd.AddCommand(failCmd)
 	rootCmd.AddCommand(recoverCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(stateSaveCmd)
 	rootCmd.AddCommand(stateReadCmd)
 	rootCmd.AddCommand(stateDeleteCmd)
+	rootCmd.SilenceUsage = true
+	rootCmd.SilenceErrors = true
 
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatal(err)

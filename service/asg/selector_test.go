@@ -8,8 +8,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	"github.com/mcastellin/aws-fail-az/awsapis"
+	"github.com/mcastellin/aws-fail-az/awsapis_mocks"
 	"github.com/mcastellin/aws-fail-az/domain"
-	mock_awsapis "github.com/mcastellin/aws-fail-az/mock_awsapis"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -17,7 +17,7 @@ import (
 func TestFilterAsgByTagsShouldNotMatchResults(t *testing.T) {
 	ctrl, _ := gomock.WithContext(context.Background(), t)
 	defer ctrl.Finish()
-	mockApi := mock_awsapis.NewMockAutoScalingApi(ctrl)
+	mockApi := awsapis_mocks.NewMockAutoScalingApi(ctrl)
 
 	pages := [][]types.AutoScalingGroup{{
 		{
@@ -53,7 +53,7 @@ func TestFilterAsgByTagsShouldNotMatchResults(t *testing.T) {
 func TestFilterAsgByTagsShouldMatchResultsInAllPages(t *testing.T) {
 	ctrl, _ := gomock.WithContext(context.Background(), t)
 	defer ctrl.Finish()
-	mockApi := mock_awsapis.NewMockAutoScalingApi(ctrl)
+	mockApi := awsapis_mocks.NewMockAutoScalingApi(ctrl)
 
 	pages := [][]types.AutoScalingGroup{
 		{{
@@ -92,14 +92,14 @@ func TestFilterAsgByTagsShouldMatchResultsInAllPages(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func createDescribeAsgPaginator(ctrl *gomock.Controller, pages [][]types.AutoScalingGroup) *mock_awsapis.MockDescribeAutoScalingGroupsPager {
-	mockPager := mock_awsapis.NewMockDescribeAutoScalingGroupsPager(ctrl)
+func createDescribeAsgPaginator(ctrl *gomock.Controller, pages [][]types.AutoScalingGroup) *awsapis_mocks.MockDescribeAutoScalingGroupsPager {
+	mockPager := awsapis_mocks.NewMockDescribeAutoScalingGroupsPager(ctrl)
 
 	gomock.InOrder(
 		mockPager.EXPECT().HasMorePages().Times(len(pages)).Return(true),
 		mockPager.EXPECT().HasMorePages().Times(1).Return(false),
 	)
-	calls := []*gomock.Call{}
+	calls := []any{}
 	for idx := range pages {
 		c := mockPager.EXPECT().NextPage(gomock.Any()).Times(1).Return(
 			&autoscaling.DescribeAutoScalingGroupsOutput{
