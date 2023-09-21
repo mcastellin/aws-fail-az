@@ -286,7 +286,7 @@ func (m *stateManagerImpl) RemoveState(stateObj ResourceState) error {
 func (m *stateManagerImpl) checkInitialized() error {
 	if !m.isInitialized {
 		return fmt.Errorf("State table has not been initialized. Call `manager.Initialize()`" +
-			" after a new stata manager is created.")
+			" after a new state manager is created.")
 	}
 	return nil
 }
