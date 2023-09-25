@@ -12,7 +12,7 @@ import (
 	"github.com/mcastellin/aws-fail-az/service/awsutils"
 )
 
-func RestoreFromState(stateData []byte, provider awsapis.AWSProvider) error {
+func RestoreEcsServicesFromState(stateData []byte, provider awsapis.AWSProvider) error {
 	var state ECSServiceState
 	err := json.Unmarshal(stateData, &state)
 	if err != nil {

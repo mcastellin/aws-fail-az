@@ -11,7 +11,7 @@ import (
 	"github.com/mcastellin/aws-fail-az/service/awsutils"
 )
 
-func RestoreFromState(stateData []byte, provider awsapis.AWSProvider) error {
+func RestoreAutoScalingGroupsFromState(stateData []byte, provider awsapis.AWSProvider) error {
 	var state AutoScalingGroupState
 	err := json.Unmarshal(stateData, &state)
 	if err != nil {

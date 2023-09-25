@@ -28,9 +28,9 @@ func InitServiceFaults() *FaultsInitFns {
 
 			// Register restore from state functions for new fault types in this structure
 
-			domain.ResourceTypeEcsService:        ecs.RestoreFromState,
-			domain.ResourceTypeAutoScalingGroup:  asg.RestoreFromState,
-			domain.ResourceTypeElbv2LoadBalancer: elbv2.RestoreFromState,
+			domain.ResourceTypeEcsService:        ecs.RestoreEcsServicesFromState,
+			domain.ResourceTypeAutoScalingGroup:  asg.RestoreAutoScalingGroupsFromState,
+			domain.ResourceTypeElbv2LoadBalancer: elbv2.RestoreElbv2LoadBalancersFromState,
 		},
 	}
 	return initFns
