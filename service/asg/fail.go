@@ -11,13 +11,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/mcastellin/aws-fail-az/awsapis"
+	"github.com/mcastellin/aws-fail-az/domain"
 	"github.com/mcastellin/aws-fail-az/service/awsutils"
 	"github.com/mcastellin/aws-fail-az/state"
 	"golang.org/x/exp/slices"
 )
-
-// The resource key to use for storing state of autoscaling groups
-const RESOURCE_TYPE string = "auto-scaling-group"
 
 type AutoScalingGroupState struct {
 	AutoScalingGroupName string   `json:"asgName"`
@@ -35,7 +33,7 @@ func (asg *AutoScalingGroup) Check() (bool, error) {
 	isValid := true
 
 	log.Printf("%s name=%s: checking resource state before failure simulation",
-		RESOURCE_TYPE, asg.AutoScalingGroupName)
+		domain.ResourceTypeAutoScalingGroup, asg.AutoScalingGroupName)
 
 	api := asg.Provider.NewAutoScalingApi()
 
@@ -91,7 +89,7 @@ func (asg *AutoScalingGroup) Save(stateManager state.StateManager) error {
 		return err
 	}
 
-	err = stateManager.Save(RESOURCE_TYPE, *asgObj.AutoScalingGroupName, data)
+	err = stateManager.Save(domain.ResourceTypeAutoScalingGroup, *asgObj.AutoScalingGroupName, data)
 	if err != nil {
 		return err
 	}
@@ -121,7 +119,7 @@ func (asg *AutoScalingGroup) Fail(azs []string) error {
 	}
 
 	log.Printf("%s name=%s: failing AZs %s for autoscaling group",
-		RESOURCE_TYPE, asg.AutoScalingGroupName, azs)
+		domain.ResourceTypeAutoScalingGroup, asg.AutoScalingGroupName, azs)
 
 	updateAsgInput := &autoscaling.UpdateAutoScalingGroupInput{
 		AutoScalingGroupName: aws.String(asg.AutoScalingGroupName),
@@ -141,7 +139,7 @@ func (asg *AutoScalingGroup) Fail(azs []string) error {
 	}
 	if len(instancesToTerminate) > 0 {
 		log.Printf("%s name=%s: terminating instances %s that belonged to removed subnets",
-			RESOURCE_TYPE, asg.AutoScalingGroupName, instancesToTerminate)
+			domain.ResourceTypeAutoScalingGroup, asg.AutoScalingGroupName, instancesToTerminate)
 
 		terminateInstancesInput := &ec2.TerminateInstancesInput{
 			InstanceIds: instancesToTerminate,
@@ -155,7 +153,8 @@ func (asg *AutoScalingGroup) Fail(azs []string) error {
 	return nil
 }
 func (asg *AutoScalingGroup) Restore() error {
-	log.Printf("%s name=%s: restoring AZs for autoscaling group", RESOURCE_TYPE, asg.AutoScalingGroupName)
+	log.Printf("%s name=%s: restoring AZs for autoscaling group",
+		domain.ResourceTypeAutoScalingGroup, asg.AutoScalingGroupName)
 
 	api := asg.Provider.NewAutoScalingApi()
 	updateAsgInput := &autoscaling.UpdateAutoScalingGroupInput{

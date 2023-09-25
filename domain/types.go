@@ -6,6 +6,12 @@ import (
 	"github.com/mcastellin/aws-fail-az/state"
 )
 
+const (
+	ResourceTypeEcsService        = "ecs-service"
+	ResourceTypeAutoScalingGroup  = "auto-scaling-group"
+	ResourceTypeElbv2LoadBalancer = "elbv2-load-balancer"
+)
+
 // A representation of an AWS resource state that can be
 // validated and stored with StateManager
 type ConsistentStateResource interface {

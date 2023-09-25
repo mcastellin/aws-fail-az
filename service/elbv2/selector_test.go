@@ -85,10 +85,10 @@ func TestFilterLoadBalancersByTagsShouldMatchInAllPages(t *testing.T) {
 	mockProvider.EXPECT().NewElbV2Api().AnyTimes().Return(mockApi)
 
 	config := domain.TargetSelector{
-		Type: RESOURCE_TYPE,
+		Type: domain.ResourceTypeElbv2LoadBalancer,
 		Tags: []domain.AWSTag{{Name: "Environment", Value: "live"}, {Name: "Application", Value: "test"}},
 	}
-	results, err := NewFromConfig(config, mockProvider)
+	results, err := NewElbv2LoadBalancerFaultFromConfig(config, mockProvider)
 
 	assert.Nil(t, err)
 	assert.Len(t, results, 3)

@@ -12,9 +12,7 @@ import (
 
 	"github.com/mcastellin/aws-fail-az/awsapis"
 	"github.com/mcastellin/aws-fail-az/domain"
-	"github.com/mcastellin/aws-fail-az/service/asg"
-	"github.com/mcastellin/aws-fail-az/service/ecs"
-	"github.com/mcastellin/aws-fail-az/service/elbv2"
+	"github.com/mcastellin/aws-fail-az/service"
 	"github.com/mcastellin/aws-fail-az/state"
 )
 
@@ -61,20 +59,9 @@ func (cmd *FailCommand) Run() error {
 
 	allServices := make([]domain.ConsistentStateResource, 0)
 
+	faultTypes := service.InitServiceFaults()
 	for _, target := range faultConfig.Targets {
-		var targetConfigs []domain.ConsistentStateResource
-		var err error
-
-		switch {
-		case target.Type == ecs.RESOURCE_TYPE:
-			targetConfigs, err = ecs.NewFromConfig(target, cmd.Provider)
-		case target.Type == asg.RESOURCE_TYPE:
-			targetConfigs, err = asg.NewFromConfig(target, cmd.Provider)
-		case target.Type == elbv2.RESOURCE_TYPE:
-			targetConfigs, err = elbv2.NewFromConfig(target, cmd.Provider)
-		default:
-			err = fmt.Errorf("Could not recognize resource type %s", target.Type)
-		}
+		targetConfigs, err := faultTypes.NewResourceForType(target, cmd.Provider)
 		if err != nil {
 			return err
 		}
