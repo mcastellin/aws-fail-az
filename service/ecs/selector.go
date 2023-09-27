@@ -12,7 +12,7 @@ import (
 	"github.com/mcastellin/aws-fail-az/service/awsutils"
 )
 
-func RestoreFromState(stateData []byte, provider awsapis.AWSProvider) error {
+func RestoreEcsServicesFromState(stateData []byte, provider awsapis.AWSProvider) error {
 	var state ECSServiceState
 	err := json.Unmarshal(stateData, &state)
 	if err != nil {
@@ -28,8 +28,8 @@ func RestoreFromState(stateData []byte, provider awsapis.AWSProvider) error {
 	return resource.Restore()
 }
 
-func NewFromConfig(selector domain.TargetSelector, provider awsapis.AWSProvider) ([]domain.ConsistentStateResource, error) {
-	if selector.Type != RESOURCE_TYPE {
+func NewEcsServiceFaultFromConfig(selector domain.TargetSelector, provider awsapis.AWSProvider) ([]domain.ConsistentStateResource, error) {
+	if selector.Type != domain.ResourceTypeEcsService {
 		return nil, fmt.Errorf("unable to create ECSService object from selector of type %s", selector.Type)
 	}
 

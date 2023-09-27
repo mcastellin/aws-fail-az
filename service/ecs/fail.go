@@ -12,13 +12,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	ecsTypes "github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/mcastellin/aws-fail-az/awsapis"
+	"github.com/mcastellin/aws-fail-az/domain"
 	"github.com/mcastellin/aws-fail-az/service/awsutils"
 	"github.com/mcastellin/aws-fail-az/state"
 	"golang.org/x/exp/slices"
 )
-
-// RESOURCE_TYPE contains the key used to identify ECS resources in storage
-const RESOURCE_TYPE string = "ecs-service"
 
 // A struct to represent an ECS service resource
 type ECSService struct {
@@ -41,7 +39,7 @@ func (svc *ECSService) Check() (bool, error) {
 	isValid := true
 
 	log.Printf("%s cluster=%s,name=%s: checking resource state before failure simulation",
-		RESOURCE_TYPE, svc.ClusterArn, svc.ServiceName)
+		domain.ResourceTypeEcsService, svc.ClusterArn, svc.ServiceName)
 
 	api := svc.Provider.NewEcsApi()
 
@@ -82,7 +80,7 @@ func (svc *ECSService) Save(stateManager state.StateManager) error {
 	}
 
 	resourceKey := fmt.Sprintf("%s-%s", svc.ClusterArn, svc.ServiceName)
-	err = stateManager.Save(RESOURCE_TYPE, resourceKey, data)
+	err = stateManager.Save(domain.ResourceTypeEcsService, resourceKey, data)
 	if err != nil {
 		return err
 	}
@@ -118,7 +116,7 @@ func (svc *ECSService) Fail(azs []string) error {
 	}
 
 	log.Printf("%s cluster=%s,name=%s: failing AZs %s for ecs-service",
-		RESOURCE_TYPE, svc.ClusterArn, svc.ServiceName, azs)
+		domain.ResourceTypeEcsService, svc.ClusterArn, svc.ServiceName, azs)
 
 	updatedNetworkConfig := service.NetworkConfiguration
 	updatedNetworkConfig.AwsvpcConfiguration.Subnets = newSubnets
@@ -145,7 +143,7 @@ func (svc *ECSService) Fail(azs []string) error {
 
 func (svc *ECSService) Restore() error {
 	log.Printf("%s cluster=%s,name=%s: restoring AZs for ecs-service",
-		RESOURCE_TYPE, svc.ClusterArn, svc.ServiceName)
+		domain.ResourceTypeEcsService, svc.ClusterArn, svc.ServiceName)
 
 	api := svc.Provider.NewEcsApi()
 
@@ -213,7 +211,7 @@ func stopTasksInRemovedSubnets(api awsapis.EcsApi, cluster string, service strin
 						return err
 					}
 					log.Printf("%s cluster=%s,name=%s: terminating task %s running in removed subnets.",
-						RESOURCE_TYPE, cluster, service, *task.TaskArn)
+						domain.ResourceTypeEcsService, cluster, service, *task.TaskArn)
 				}
 			}
 		}

@@ -36,11 +36,11 @@ func TestFilterServiceByTagsShouldExcludeResults(t *testing.T) {
 	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsAPI)
 
 	config := domain.TargetSelector{
-		Type: RESOURCE_TYPE,
+		Type: domain.ResourceTypeEcsService,
 		Tags: []domain.AWSTag{{Name: "Application", Value: "notfound"}},
 	}
 
-	results, err := NewFromConfig(config, mockProvider)
+	results, err := NewEcsServiceFaultFromConfig(config, mockProvider)
 
 	assert.Nil(t, err)
 	assert.Len(t, results, 0)
@@ -70,11 +70,11 @@ func TestFilterServiceByTagsShouldMatch(t *testing.T) {
 	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsAPI)
 
 	config := domain.TargetSelector{
-		Type: RESOURCE_TYPE,
+		Type: domain.ResourceTypeEcsService,
 		Tags: []domain.AWSTag{{Name: "Application", Value: "live-app"}},
 	}
 
-	results, err := NewFromConfig(config, mockProvider)
+	results, err := NewEcsServiceFaultFromConfig(config, mockProvider)
 
 	assert.Nil(t, err)
 	assert.Len(t, results, 1)
@@ -105,11 +105,11 @@ func TestFilterServiceByTagsShouldMatchResultsFromAllPages(t *testing.T) {
 	mockProvider.EXPECT().NewEcsApi().AnyTimes().Return(mockEcsAPI)
 
 	config := domain.TargetSelector{
-		Type: RESOURCE_TYPE,
+		Type: domain.ResourceTypeEcsService,
 		Tags: []domain.AWSTag{{Name: "Application", Value: "live-app"}},
 	}
 
-	results, err := NewFromConfig(config, mockProvider)
+	results, err := NewEcsServiceFaultFromConfig(config, mockProvider)
 
 	assert.Nil(t, err)
 	assert.Len(t, results, 3)

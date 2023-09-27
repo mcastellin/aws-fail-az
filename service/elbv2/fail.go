@@ -11,11 +11,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
 	"github.com/mcastellin/aws-fail-az/awsapis"
+	"github.com/mcastellin/aws-fail-az/domain"
 	"github.com/mcastellin/aws-fail-az/service/awsutils"
 	"github.com/mcastellin/aws-fail-az/state"
 )
-
-const RESOURCE_TYPE string = "elbv2-load-balancer"
 
 type LoadBalancerState struct {
 	LoadBalancerName string   `json:"lbName"`
@@ -30,7 +29,7 @@ type LoadBalancer struct {
 
 func (lb *LoadBalancer) Check() (bool, error) {
 	log.Printf("%s name=%s: checking resource state before failure simulation",
-		RESOURCE_TYPE, lb.Name)
+		domain.ResourceTypeElbv2LoadBalancer, lb.Name)
 
 	api := lb.Provider.NewElbV2Api()
 
@@ -75,7 +74,7 @@ func (lb *LoadBalancer) Save(stateManager state.StateManager) error {
 		log.Println("Error while marshalling load balancer state")
 		return err
 	}
-	err = stateManager.Save(RESOURCE_TYPE, lb.Name, data)
+	err = stateManager.Save(domain.ResourceTypeElbv2LoadBalancer, lb.Name, data)
 
 	return err
 }
@@ -105,7 +104,7 @@ func (lb *LoadBalancer) Fail(azs []string) error {
 			" Load balancers require at least 2 availability zones. AZ failure will now stop", lb.Name)
 	}
 
-	log.Printf("%s name=%s: failing AZs %s for load-balancer", RESOURCE_TYPE, lb.Name, azs)
+	log.Printf("%s name=%s: failing AZs %s for load-balancer", domain.ResourceTypeElbv2LoadBalancer, lb.Name, azs)
 
 	_, err = api.SetSubnets(context.TODO(), &elasticloadbalancingv2.SetSubnetsInput{
 		LoadBalancerArn: loadBalancerDescriptor.LoadBalancerArn,
@@ -117,7 +116,7 @@ func (lb *LoadBalancer) Fail(azs []string) error {
 
 func (lb *LoadBalancer) Restore() error {
 
-	log.Printf("%s name=%s: restoring AZs for load-balancer", RESOURCE_TYPE, lb.Name)
+	log.Printf("%s name=%s: restoring AZs for load-balancer", domain.ResourceTypeElbv2LoadBalancer, lb.Name)
 
 	api := lb.Provider.NewElbV2Api()
 

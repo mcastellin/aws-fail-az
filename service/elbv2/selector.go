@@ -12,7 +12,7 @@ import (
 	"github.com/mcastellin/aws-fail-az/service/awsutils"
 )
 
-func RestoreFromState(stateData []byte, provider awsapis.AWSProvider) error {
+func RestoreElbv2LoadBalancersFromState(stateData []byte, provider awsapis.AWSProvider) error {
 	var state LoadBalancerState
 	err := json.Unmarshal(stateData, &state)
 	if err != nil {
@@ -27,9 +27,9 @@ func RestoreFromState(stateData []byte, provider awsapis.AWSProvider) error {
 	return resource.Restore()
 }
 
-func NewFromConfig(selector domain.TargetSelector, provider awsapis.AWSProvider) ([]domain.ConsistentStateResource, error) {
+func NewElbv2LoadBalancerFaultFromConfig(selector domain.TargetSelector, provider awsapis.AWSProvider) ([]domain.ConsistentStateResource, error) {
 
-	if selector.Type != RESOURCE_TYPE {
+	if selector.Type != domain.ResourceTypeElbv2LoadBalancer {
 		return nil, fmt.Errorf("Unable to create LoadBalancer object from selector of type %s.", selector.Type)
 	}
 
