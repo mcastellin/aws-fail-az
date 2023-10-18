@@ -12,6 +12,16 @@ import (
 	"github.com/mcastellin/aws-fail-az/service/awsutils"
 )
 
+func DescribeElbv2LoadBalancersState(stateData []byte) (string, error) {
+	var state LoadBalancerState
+	err := json.Unmarshal(stateData, &state)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("- LoadBalancerName: %s", state.LoadBalancerName), nil
+}
+
 func RestoreElbv2LoadBalancersFromState(stateData []byte, provider awsapis.AWSProvider) error {
 	var state LoadBalancerState
 	err := json.Unmarshal(stateData, &state)

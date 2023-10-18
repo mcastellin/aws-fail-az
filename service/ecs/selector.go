@@ -12,6 +12,16 @@ import (
 	"github.com/mcastellin/aws-fail-az/service/awsutils"
 )
 
+func DescribeEcsServicesState(stateData []byte) (string, error) {
+	var state ECSServiceState
+	err := json.Unmarshal(stateData, &state)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("- Cluster: %s\n  ServiceName: %s", state.ClusterArn, state.ServiceName), nil
+}
+
 func RestoreEcsServicesFromState(stateData []byte, provider awsapis.AWSProvider) error {
 	var state ECSServiceState
 	err := json.Unmarshal(stateData, &state)

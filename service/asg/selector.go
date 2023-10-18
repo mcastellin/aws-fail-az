@@ -11,6 +11,16 @@ import (
 	"github.com/mcastellin/aws-fail-az/service/awsutils"
 )
 
+func DescribeAutoScalingGroupsState(stateData []byte) (string, error) {
+	var state AutoScalingGroupState
+	err := json.Unmarshal(stateData, &state)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("- AutoScalingGroupName: %s", state.AutoScalingGroupName), nil
+}
+
 func RestoreAutoScalingGroupsFromState(stateData []byte, provider awsapis.AWSProvider) error {
 	var state AutoScalingGroupState
 	err := json.Unmarshal(stateData, &state)
