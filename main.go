@@ -129,6 +129,22 @@ var stateDeleteCmd = &cobra.Command{
 	},
 }
 
+var listCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all the attacked resources",
+	RunE: func(_ *cobra.Command, args []string) error {
+		provider, err := createProvider()
+		if err != nil {
+			return err
+		}
+		op := &cmd.ListCommand{
+			Provider:  provider,
+			Namespace: namespace,
+		}
+		return op.Run()
+	},
+}
+
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the command version",
@@ -175,6 +191,8 @@ func main() {
 	stateDeleteCmd.MarkFlagRequired("type")
 	stateDeleteCmd.MarkFlagRequired("key")
 
+	listCmd.Flags().StringVar(&namespace, "ns", "", "The namespace assigned to this operation. Used to uniquely identify resources state for recovery.")
+
 	rootCmd.PersistentFlags().StringVar(&awsRegion, "region", "", "The AWS region")
 	rootCmd.PersistentFlags().StringVar(&awsProfile, "profile", "", "The AWS profile")
 	rootCmd.AddCommand(failCmd)
@@ -183,6 +201,7 @@ func main() {
 	rootCmd.AddCommand(stateSaveCmd)
 	rootCmd.AddCommand(stateReadCmd)
 	rootCmd.AddCommand(stateDeleteCmd)
+	rootCmd.AddCommand(listCmd)
 	rootCmd.SilenceUsage = true
 	rootCmd.SilenceErrors = true
 

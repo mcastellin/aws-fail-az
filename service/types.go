@@ -32,6 +32,14 @@ func InitServiceFaults() *FaultsInitFns {
 			domain.ResourceTypeAutoScalingGroup:  asg.RestoreAutoScalingGroupsFromState,
 			domain.ResourceTypeElbv2LoadBalancer: elbv2.RestoreElbv2LoadBalancersFromState,
 		},
+
+		describe: map[string]func([]byte) (string, error){
+			// Register describe state functions for new fault types in this structure
+
+			domain.ResourceTypeEcsService:        ecs.DescribeEcsServicesState,
+			domain.ResourceTypeAutoScalingGroup:  asg.DescribeAutoScalingGroupsState,
+			domain.ResourceTypeElbv2LoadBalancer: elbv2.DescribeElbv2LoadBalancersState,
+		},
 	}
 	return initFns
 }
@@ -44,6 +52,9 @@ type FaultsInitFns struct {
 
 	// A map of all available fault types and their restore functions
 	restore map[string]func([]byte, awsapis.AWSProvider) error
+
+	// A map of all available fault types and their describe functions
+	describe map[string]func([]byte) (string, error)
 }
 
 // Initialize new resource faults from their selector
@@ -71,4 +82,18 @@ func (obj *FaultsInitFns) RestoreFromState(state state.ResourceState, provider a
 		state.Key,
 	)
 	return err
+}
+
+// Call the specific DescribeState function for the resource type specified in the state object
+func (obj *FaultsInitFns) DescribeState(state state.ResourceState) (string, error) {
+	describeFn, ok := obj.describe[state.ResourceType]
+	if ok {
+		return describeFn(state.State)
+	}
+
+	err := fmt.Errorf("unknown resource of type %s found in state with key %s. Object will be ignored",
+		state.ResourceType,
+		state.Key,
+	)
+	return "", err
 }
