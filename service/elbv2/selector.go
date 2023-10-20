@@ -19,7 +19,7 @@ func DescribeElbv2LoadBalancersState(stateData []byte) (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("- LoadBalancerName: %s", state.LoadBalancerName), nil
+	return fmt.Sprintf("- Resource type: %s\n  LoadBalancerName: %s", "ELB Load Balancer", state.LoadBalancerName), nil
 }
 
 func RestoreElbv2LoadBalancersFromState(stateData []byte, provider awsapis.AWSProvider) error {

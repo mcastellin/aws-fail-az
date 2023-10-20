@@ -18,7 +18,7 @@ func DescribeAutoScalingGroupsState(stateData []byte) (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("- AutoScalingGroupName: %s", state.AutoScalingGroupName), nil
+	return fmt.Sprintf("- Resource type: %s\n  AutoScalingGroupName: %s", "AutoScaling Group", state.AutoScalingGroupName), nil
 }
 
 func RestoreAutoScalingGroupsFromState(stateData []byte, provider awsapis.AWSProvider) error {

@@ -19,7 +19,7 @@ func DescribeEcsServicesState(stateData []byte) (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("- Cluster: %s\n  ServiceName: %s", state.ClusterArn, state.ServiceName), nil
+	return fmt.Sprintf("- Resource type: %s\n  Cluster: %s\n  ServiceName: %s", "ECS Service", state.ClusterArn, state.ServiceName), nil
 }
 
 func RestoreEcsServicesFromState(stateData []byte, provider awsapis.AWSProvider) error {
